@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 enum PublicacaoTipo { anuncio, solicitacao }
 
 class Publicacao {
@@ -7,12 +9,13 @@ class Publicacao {
     required this.descricao,
     required this.preco,
     required this.criadoEm,
-  });
+    List<Uint8List>? imagens,
+  }) : imagens = List.unmodifiable(imagens ?? const <Uint8List>[]);
 
   final PublicacaoTipo tipo;
   final String nome;
   final String descricao;
   final double preco;
   final DateTime criadoEm;
+  final List<Uint8List> imagens;
 }
-

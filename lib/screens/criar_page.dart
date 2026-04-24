@@ -1,4 +1,7 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../models/publicacao.dart';
 
@@ -18,6 +21,7 @@ class _CriarPageState extends State<CriarPage> {
   final _precoController = TextEditingController();
 
   PublicacaoTipo _tipo = PublicacaoTipo.anuncio;
+  final List<Uint8List> _imagens = [];
 
   @override
   void dispose() {
@@ -25,6 +29,20 @@ class _CriarPageState extends State<CriarPage> {
     _descricaoController.dispose();
     _precoController.dispose();
     super.dispose();
+  }
+
+  Future<void> _adicionarImagens() async {
+    final picker = ImagePicker();
+    final files = await picker.pickMultiImage(imageQuality: 85);
+    if (files.isEmpty) return;
+
+    final bytesList = await Future.wait(files.map((f) => f.readAsBytes()));
+    if (!mounted) return;
+    setState(() => _imagens.addAll(bytesList));
+  }
+
+  void _removerImagem(int index) {
+    setState(() => _imagens.removeAt(index));
   }
 
   String get _labelNome =>
@@ -52,6 +70,7 @@ class _CriarPageState extends State<CriarPage> {
         descricao: _descricaoController.text.trim(),
         preco: preco,
         criadoEm: DateTime.now(),
+        imagens: tipoCriado == PublicacaoTipo.anuncio ? _imagens : null,
       ),
     );
 
@@ -60,6 +79,7 @@ class _CriarPageState extends State<CriarPage> {
     _nomeController.clear();
     _descricaoController.clear();
     _precoController.clear();
+    _imagens.clear();
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -101,7 +121,10 @@ class _CriarPageState extends State<CriarPage> {
               ],
               onChanged: (value) {
                 if (value == null) return;
-                setState(() => _tipo = value);
+                setState(() {
+                  _tipo = value;
+                  if (_tipo != PublicacaoTipo.anuncio) _imagens.clear();
+                });
               },
             ),
             const SizedBox(height: 16),
@@ -155,6 +178,59 @@ class _CriarPageState extends State<CriarPage> {
               },
             ),
             const SizedBox(height: 16),
+            if (_tipo == PublicacaoTipo.anuncio) ...[
+              Text(
+                'Imagens',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: _adicionarImagens,
+                icon: const Icon(Icons.photo_library_outlined),
+                label: const Text('Adicionar imagens'),
+              ),
+              if (_imagens.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                SizedBox(
+                  height: 96,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: _imagens.length,
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(width: 12),
+                    itemBuilder: (context, index) {
+                      return Stack(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.memory(
+                              _imagens[index],
+                              width: 96,
+                              height: 96,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                          Positioned(
+                            top: 2,
+                            right: 2,
+                            child: IconButton(
+                              onPressed: () => _removerImagem(index),
+                              icon: const Icon(Icons.close),
+                              style: IconButton.styleFrom(
+                                backgroundColor: Colors.black54,
+                                foregroundColor: Colors.white,
+                                visualDensity: VisualDensity.compact,
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+              ],
+              const SizedBox(height: 16),
+            ],
             FilledButton(
               onPressed: _submit,
               child: const Text('Criar'),
@@ -165,4 +241,3 @@ class _CriarPageState extends State<CriarPage> {
     );
   }
 }
-
