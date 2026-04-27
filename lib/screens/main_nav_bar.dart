@@ -33,6 +33,7 @@ class _MainNavBarState extends State<MainNavBar> {
     'Solicitações',
     'Home Page',
     'Criar',
+    'Carteira',
     'Perfil',
   ];
 
@@ -214,6 +215,7 @@ class _MainNavBarState extends State<MainNavBar> {
         criadoPorId: _userId,
         criadoPorNome: _nomePerfil,
       ),
+      const CarteiraPage(),
       PerfilPage(
         nome: _nomePerfil,
         foto: _fotoPerfil,
@@ -262,11 +264,47 @@ class _MainNavBarState extends State<MainNavBar> {
             label: 'Criar',
           ),
           BottomNavigationBarItem(
+            icon: Icon(Icons.account_balance_wallet_outlined),
+            label: 'Carteira',
+          ),
+          BottomNavigationBarItem(
             icon: Icon(Icons.person),
             label: 'Perfil',
           ),
         ],
       ),
+    );
+  }
+}
+
+class CarteiraPage extends StatelessWidget {
+  const CarteiraPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Carteira',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Em breve.',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

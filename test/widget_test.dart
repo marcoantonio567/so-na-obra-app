@@ -28,6 +28,7 @@ void main() {
     );
     expect(find.descendant(of: bottomNav, matching: find.text('Home Page')), findsOneWidget);
     expect(find.descendant(of: bottomNav, matching: find.text('Criar')), findsOneWidget);
+    expect(find.descendant(of: bottomNav, matching: find.text('Carteira')), findsOneWidget);
     expect(find.descendant(of: bottomNav, matching: find.text('Perfil')), findsOneWidget);
 
     final appBar = find.byType(AppBar);
@@ -44,6 +45,10 @@ void main() {
     await tester.tap(find.text('Criar'));
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.descendant(of: appBar, matching: find.text('Criar')), findsOneWidget);
+
+    await tester.tap(find.text('Carteira'));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.descendant(of: appBar, matching: find.text('Carteira')), findsOneWidget);
 
     await tester.tap(find.text('Solicitações'));
     await tester.pump(const Duration(milliseconds: 300));
