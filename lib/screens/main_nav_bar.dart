@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 
 import '../models/publicacao.dart';
@@ -14,9 +16,13 @@ class MainNavBar extends StatefulWidget {
 }
 
 class _MainNavBarState extends State<MainNavBar> {
+  static const String _userId = 'local_user';
+
   int _currentIndex = 1;
 
   final List<Publicacao> _publicacoes = [];
+  String _nomePerfil = 'Seu nome';
+  Uint8List? _fotoPerfil;
 
   static const List<String> _titles = [
     'Solicitações',
@@ -46,8 +52,22 @@ class _MainNavBarState extends State<MainNavBar> {
             .where((p) => p.tipo == PublicacaoTipo.anuncio)
             .toList(growable: false),
       ),
-      CriarPage(onCriar: _adicionarPublicacao),
-      const PerfilPage(),
+      CriarPage(
+        onCriar: _adicionarPublicacao,
+        criadoPorId: _userId,
+        criadoPorNome: _nomePerfil,
+      ),
+      PerfilPage(
+        nome: _nomePerfil,
+        foto: _fotoPerfil,
+        meusAnuncios: _publicacoes
+            .where(
+              (p) => p.tipo == PublicacaoTipo.anuncio && p.criadoPorId == _userId,
+            )
+            .toList(growable: false),
+        onNomeAlterado: (nome) => setState(() => _nomePerfil = nome),
+        onFotoAlterada: (foto) => setState(() => _fotoPerfil = foto),
+      ),
     ];
 
     return Scaffold(
@@ -82,4 +102,3 @@ class _MainNavBarState extends State<MainNavBar> {
     );
   }
 }
-

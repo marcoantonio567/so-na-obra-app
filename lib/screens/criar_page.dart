@@ -6,9 +6,16 @@ import 'package:image_picker/image_picker.dart';
 import '../models/publicacao.dart';
 
 class CriarPage extends StatefulWidget {
-  const CriarPage({super.key, required this.onCriar});
+  const CriarPage({
+    super.key,
+    required this.onCriar,
+    required this.criadoPorId,
+    required this.criadoPorNome,
+  });
 
   final ValueChanged<Publicacao> onCriar;
+  final String criadoPorId;
+  final String criadoPorNome;
 
   @override
   State<CriarPage> createState() => _CriarPageState();
@@ -66,6 +73,8 @@ class _CriarPageState extends State<CriarPage> {
     widget.onCriar(
       Publicacao(
         tipo: tipoCriado,
+        criadoPorId: widget.criadoPorId,
+        criadoPorNome: widget.criadoPorNome,
         nome: _nomeController.text.trim(),
         descricao: _descricaoController.text.trim(),
         preco: preco,
