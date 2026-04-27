@@ -34,9 +34,16 @@ void main() {
     expect(appBar, findsOneWidget);
     expect(find.descendant(of: appBar, matching: find.text('Home Page')), findsOneWidget);
 
+    final homeChatButton = find.byKey(const Key('home_top_chat_button'));
+    expect(homeChatButton, findsOneWidget);
+
     await tester.tap(find.text('Perfil'));
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.descendant(of: appBar, matching: find.text('Perfil')), findsOneWidget);
+
+    await tester.tap(find.text('Criar'));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.descendant(of: appBar, matching: find.text('Criar')), findsOneWidget);
 
     await tester.tap(find.text('Solicitações'));
     await tester.pump(const Duration(milliseconds: 300));

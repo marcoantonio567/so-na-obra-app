@@ -228,6 +228,20 @@ class _MainNavBarState extends State<MainNavBar> {
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: Text(_titles[_currentIndex]),
+        actions: _currentIndex == 1
+            ? [
+                IconButton(
+                  key: const Key('home_top_chat_button'),
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Abrindo chats...')),
+                    );
+                  },
+                  icon: const Icon(Icons.chat_bubble_outline),
+                  tooltip: 'Chat',
+                ),
+              ]
+            : null,
       ),
       body: SafeArea(child: pages[_currentIndex]),
       bottomNavigationBar: BottomNavigationBar(
