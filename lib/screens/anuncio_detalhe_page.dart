@@ -1,22 +1,16 @@
 import 'package:flutter/material.dart';
 
 import '../models/publicacao.dart';
+import '../utils/formatters.dart';
 
 class AnuncioDetalhePage extends StatelessWidget {
   const AnuncioDetalhePage({super.key, required this.publicacao});
 
   final Publicacao publicacao;
 
-  String _formatarData(DateTime data) {
-    final dia = data.day.toString().padLeft(2, '0');
-    final mes = data.month.toString().padLeft(2, '0');
-    final ano = data.year.toString();
-    return '$dia/$mes/$ano';
-  }
-
   @override
   Widget build(BuildContext context) {
-    final precoText = 'R\$ ${publicacao.preco.toStringAsFixed(2)}';
+    final precoText = formatMoneyBRL(publicacao.preco);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Detalhes do anúncio')),
@@ -85,7 +79,7 @@ class AnuncioDetalhePage extends StatelessWidget {
                         contentPadding: EdgeInsets.zero,
                         leading: const Icon(Icons.calendar_today_outlined),
                         title: const Text('Publicado em'),
-                        subtitle: Text(_formatarData(publicacao.criadoEm)),
+                        subtitle: Text(formatDateBR(publicacao.criadoEm)),
                       ),
                     ],
                   ),

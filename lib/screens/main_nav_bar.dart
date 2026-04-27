@@ -3,11 +3,12 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
-import '../data/local_database.dart';
+import '../data/seed/publicacoes_seed.dart';
 import '../models/publicacao.dart';
+import '../services/publicacoes_service.dart';
 import 'anuncios_page.dart';
+import 'carteira/carteira_page.dart';
 import 'criar_page.dart';
-import 'main_nav_bar_seed.dart';
 import 'perfil_page.dart';
 import 'solicitacoes_page.dart';
 
@@ -23,6 +24,7 @@ class _MainNavBarState extends State<MainNavBar> {
 
   int _currentIndex = 1;
 
+  static const PublicacoesService _publicacoesService = PublicacoesService();
   final List<Publicacao> _publicacoes = [];
   bool _isLoading = true;
   String _nomePerfil = 'Seu nome';
@@ -71,53 +73,6 @@ class _MainNavBarState extends State<MainNavBar> {
     });
   }
 
-  Future<List<Publicacao>> _listarPublicacoesComTimeout() {
-    return LocalDatabase.instance
-        .listarPublicacoes()
-        .timeout(const Duration(seconds: 1));
-  }
-
-  bool _temPublicacoesSeed(List<Publicacao> lista) {
-    return lista.any((p) => p.criadoPorId == seedUserId);
-  }
-
-  bool _temPublicacoesDoUsuario(List<Publicacao> lista) {
-    return lista.any((p) => p.criadoPorId == _userId);
-  }
-
-  bool _temAnuncioSeedComImagem(List<Publicacao> lista) {
-    return lista.any(
-      (p) =>
-          p.criadoPorId == seedUserId &&
-          p.tipo == PublicacaoTipo.anuncio &&
-          p.imagens.isNotEmpty,
-    );
-  }
-
-  Future<List<Publicacao>> _carregarPublicacoesPersistidas() async {
-    var lista = await _listarPublicacoesComTimeout();
-    if (!_temPublicacoesSeed(lista)) {
-      await inserirPublicacoesFicticias(LocalDatabase.instance);
-      lista = await _listarPublicacoesComTimeout();
-    }
-
-    if (!_temAnuncioSeedComImagem(lista)) {
-      await inserirAnunciosFicticiosComImagens(LocalDatabase.instance);
-      lista = await _listarPublicacoesComTimeout();
-    }
-
-    if (!_temPublicacoesDoUsuario(lista)) {
-      await inserirPublicacoesFicticiasDoUsuario(
-        database: LocalDatabase.instance,
-        userId: _userId,
-        userName: _nomePerfil,
-      );
-      lista = await _listarPublicacoesComTimeout();
-    }
-
-    return lista;
-  }
-
   void _atualizarPublicacoes(List<Publicacao> lista) {
     setState(() {
       _publicacoes
@@ -138,7 +93,10 @@ class _MainNavBarState extends State<MainNavBar> {
   Future<void> _carregarPublicacoes() async {
     _iniciarFallbackSeTravou();
     try {
-      final lista = await _carregarPublicacoesPersistidas();
+      final lista = await _publicacoesService.carregar(
+        userId: _userId,
+        userName: _nomePerfil,
+      );
       if (!mounted) return;
       _atualizarPublicacoes(lista);
     } catch (_) {
@@ -171,7 +129,7 @@ class _MainNavBarState extends State<MainNavBar> {
 
   Future<void> _salvarPublicacao(Publicacao publicacao) async {
     try {
-      await LocalDatabase.instance.inserirPublicacao(publicacao);
+      await _publicacoesService.salvar(publicacao);
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -275,225 +233,4 @@ class _MainNavBarState extends State<MainNavBar> {
       ),
     );
   }
-}
-
-class CarteiraPage extends StatefulWidget {
-  const CarteiraPage({super.key});
-
-  @override
-  State<CarteiraPage> createState() => _CarteiraPageState();
-}
-
-class _CarteiraPageState extends State<CarteiraPage> {
-  double _saldo = 180.75;
-  bool _atualizandoSaldo = false;
-
-  late final List<_Compra> _compras = [
-    _Compra(
-      nome: 'Kit de ferramentas',
-      valor: 59.90,
-      data: DateTime(2026, 4, 4),
-    ),
-    _Compra(
-      nome: 'Luva de proteção',
-      valor: 18.50,
-      data: DateTime(2026, 4, 12),
-    ),
-    _Compra(
-      nome: 'Botina de segurança',
-      valor: 129.90,
-      data: DateTime(2026, 4, 20),
-    ),
-  ];
-
-  String _formatarDinheiro(double valor) {
-    final negative = valor < 0;
-    final abs = valor.abs();
-    final fixed = abs.toStringAsFixed(2);
-    final parts = fixed.split('.');
-    final inteiro = parts[0];
-    final centavos = parts.length > 1 ? parts[1] : '00';
-    final buffer = StringBuffer();
-    for (var i = 0; i < inteiro.length; i++) {
-      final indexFromEnd = inteiro.length - i;
-      buffer.write(inteiro[i]);
-      if (indexFromEnd > 1 && indexFromEnd % 3 == 1) {
-        buffer.write('.');
-      }
-    }
-    final prefix = negative ? '-R\$ ' : 'R\$ ';
-    return '$prefix${buffer.toString()},$centavos';
-  }
-
-  String _formatarData(DateTime data) {
-    String two(int n) => n.toString().padLeft(2, '0');
-    return '${two(data.day)}/${two(data.month)}/${data.year}';
-  }
-
-  double? _parseValorDigitado(String input) {
-    final cleaned =
-        input.trim().replaceAll(RegExp(r'[^0-9,\.]'), '').replaceAll(',', '.');
-    if (cleaned.isEmpty) return null;
-    return double.tryParse(cleaned);
-  }
-
-  Future<void> _abrirSaque() async {
-    final controller = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-    try {
-      final valor = await showDialog<double>(
-        context: context,
-        builder: (dialogContext) {
-          return AlertDialog(
-            title: const Text('Sacar'),
-            content: Form(
-              key: formKey,
-              child: TextFormField(
-                controller: controller,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                autofocus: true,
-                decoration: const InputDecoration(
-                  labelText: 'Valor',
-                  hintText: 'Ex: 50,00',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) {
-                  final parsed = _parseValorDigitado(value ?? '');
-                  if (parsed == null) return 'Informe um valor.';
-                  if (parsed <= 0) return 'Informe um valor maior que zero.';
-                  if (parsed > _saldo) return 'Saldo insuficiente.';
-                  return null;
-                },
-                textInputAction: TextInputAction.done,
-                onFieldSubmitted: (_) {
-                  final isValid = formKey.currentState?.validate() ?? false;
-                  if (!isValid) return;
-                  final parsed = _parseValorDigitado(controller.text);
-                  Navigator.of(dialogContext).pop(parsed);
-                },
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(),
-                child: const Text('Cancelar'),
-              ),
-              FilledButton(
-                onPressed: () {
-                  final isValid = formKey.currentState?.validate() ?? false;
-                  if (!isValid) return;
-                  final parsed = _parseValorDigitado(controller.text);
-                  Navigator.of(dialogContext).pop(parsed);
-                },
-                child: const Text('Confirmar'),
-              ),
-            ],
-          );
-        },
-      );
-
-      if (!mounted || valor == null) return;
-      setState(() => _saldo -= valor);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Saque de ${_formatarDinheiro(valor)} solicitado.')),
-      );
-    } finally {
-      controller.dispose();
-    }
-  }
-
-  Future<void> _atualizarSaldo() async {
-    if (_atualizandoSaldo) return;
-    setState(() => _atualizandoSaldo = true);
-    await Future<void>.delayed(const Duration(milliseconds: 600));
-    if (!mounted) return;
-    setState(() => _atualizandoSaldo = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Saldo atualizado: ${_formatarDinheiro(_saldo)}')),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Saldo disponível',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  _formatarDinheiro(_saldo),
-                  style: Theme.of(context).textTheme.headlineSmall,
-                ),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  children: [
-                    FilledButton.icon(
-                      onPressed: _saldo <= 0 ? null : _abrirSaque,
-                      icon: const Icon(Icons.payments_outlined),
-                      label: const Text('Sacar'),
-                    ),
-                    OutlinedButton.icon(
-                      onPressed: _atualizandoSaldo ? null : _atualizarSaldo,
-                      icon: const Icon(Icons.refresh),
-                      label: Text(
-                        _atualizandoSaldo ? 'Atualizando...' : 'Atualizar saldo',
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-        Text(
-          'Meus itens comprados',
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-        const SizedBox(height: 12),
-        if (_compras.isEmpty)
-          const Card(
-            child: Padding(
-              padding: EdgeInsets.all(16),
-              child: Text('Você ainda não comprou nenhum item.'),
-            ),
-          )
-        else
-          ..._compras.map(
-            (c) => Card(
-              child: ListTile(
-                leading: const Icon(Icons.shopping_bag_outlined),
-                title: Text(c.nome),
-                subtitle: Text(_formatarData(c.data)),
-                trailing: Text(_formatarDinheiro(c.valor)),
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-class _Compra {
-  const _Compra({
-    required this.nome,
-    required this.valor,
-    required this.data,
-  });
-
-  final String nome;
-  final double valor;
-  final DateTime data;
 }

@@ -3,8 +3,8 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
-import '../data/local_database.dart';
-import '../models/publicacao.dart';
+import '../local_database.dart';
+import '../../models/publicacao.dart';
 
 const String seedUserId = 'seed_user';
 const List<int> imagemPngPlaceholder = <int>[
