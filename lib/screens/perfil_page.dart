@@ -40,58 +40,74 @@ class _PerfilPageState extends State<PerfilPage> {
     widget.onFotoAlterada(bytes);
   }
 
-  Future<void> _editarNome() async {
-    final controller = TextEditingController(text: widget.nome);
+  String? _validarNome(String? value) {
+    final text = value?.trim() ?? '';
+    if (text.isEmpty) return 'Informe um nome.';
+    if (text.length < 2) return 'Nome muito curto.';
+    return null;
+  }
+
+  void _confirmarNovoNome({
+    required BuildContext dialogContext,
+    required GlobalKey<FormState> formKey,
+    required TextEditingController controller,
+  }) {
+    final isValid = formKey.currentState?.validate() ?? false;
+    if (!isValid) return;
+    Navigator.of(dialogContext).pop(controller.text.trim());
+  }
+
+  Future<String?> _pedirNovoNome(String nomeAtual) async {
+    final controller = TextEditingController(text: nomeAtual);
     final formKey = GlobalKey<FormState>();
-
-    final novoNome = await showDialog<String>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Trocar nome'),
-          content: Form(
-            key: formKey,
-            child: TextFormField(
-              controller: controller,
-              autofocus: true,
-              textInputAction: TextInputAction.done,
-              decoration: const InputDecoration(
-                labelText: 'Nome',
-                border: OutlineInputBorder(),
+    try {
+      return showDialog<String>(
+        context: context,
+        builder: (dialogContext) {
+          return AlertDialog(
+            title: const Text('Trocar nome'),
+            content: Form(
+              key: formKey,
+              child: TextFormField(
+                controller: controller,
+                autofocus: true,
+                textInputAction: TextInputAction.done,
+                decoration: const InputDecoration(
+                  labelText: 'Nome',
+                  border: OutlineInputBorder(),
+                ),
+                validator: _validarNome,
+                onFieldSubmitted: (_) => _confirmarNovoNome(
+                  dialogContext: dialogContext,
+                  formKey: formKey,
+                  controller: controller,
+                ),
               ),
-              validator: (value) {
-                final text = value?.trim() ?? '';
-                if (text.isEmpty) return 'Informe um nome.';
-                if (text.length < 2) return 'Nome muito curto.';
-                return null;
-              },
-              onFieldSubmitted: (_) {
-                final isValid = formKey.currentState?.validate() ?? false;
-                if (!isValid) return;
-                Navigator.of(context).pop(controller.text.trim());
-              },
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancelar'),
-            ),
-            FilledButton(
-              onPressed: () {
-                final isValid = formKey.currentState?.validate() ?? false;
-                if (!isValid) return;
-                Navigator.of(context).pop(controller.text.trim());
-              },
-              child: const Text('Salvar'),
-            ),
-          ],
-        );
-      },
-    );
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Cancelar'),
+              ),
+              FilledButton(
+                onPressed: () => _confirmarNovoNome(
+                  dialogContext: dialogContext,
+                  formKey: formKey,
+                  controller: controller,
+                ),
+                child: const Text('Salvar'),
+              ),
+            ],
+          );
+        },
+      );
+    } finally {
+      controller.dispose();
+    }
+  }
 
-    controller.dispose();
-
+  Future<void> _editarNome() async {
+    final novoNome = await _pedirNovoNome(widget.nome);
     final trimmed = (novoNome ?? '').trim();
     if (trimmed.isEmpty) return;
     widget.onNomeAlterado(trimmed);
