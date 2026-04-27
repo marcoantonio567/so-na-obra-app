@@ -1,9 +1,9 @@
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../models/publicacao.dart';
+import '../utils/formatters.dart';
 
 class CriarPage extends StatefulWidget {
   const CriarPage({
@@ -26,8 +26,12 @@ class _CriarPageState extends State<CriarPage> {
   final _nomeController = TextEditingController();
   final _descricaoController = TextEditingController();
   final _precoController = TextEditingController();
+  final _cepController = TextEditingController();
+  final _valorPorKmController = TextEditingController();
 
   PublicacaoTipo _tipo = PublicacaoTipo.anuncio;
+  AnuncioLogistica _logistica = AnuncioLogistica.retiradaLocal;
+  bool _aceitaPropostas = false;
   final List<Uint8List> _imagens = [];
 
   @override
@@ -35,6 +39,8 @@ class _CriarPageState extends State<CriarPage> {
     _nomeController.dispose();
     _descricaoController.dispose();
     _precoController.dispose();
+    _cepController.dispose();
+    _valorPorKmController.dispose();
     super.dispose();
   }
 
@@ -70,6 +76,13 @@ class _CriarPageState extends State<CriarPage> {
     final tipoCriado = _tipo;
     final preco = double.parse(_precoController.text.replaceAll(',', '.'));
 
+    final isEntrega =
+        tipoCriado == PublicacaoTipo.anuncio && _logistica == AnuncioLogistica.entrega;
+    final entregaCep =
+        isEntrega ? _cepController.text.trim().replaceAll(RegExp(r'\D'), '') : null;
+    final entregaValorPorKm =
+        isEntrega ? parseMoneyInput(_valorPorKmController.text) : null;
+
     widget.onCriar(
       Publicacao(
         tipo: tipoCriado,
@@ -80,6 +93,10 @@ class _CriarPageState extends State<CriarPage> {
         preco: preco,
         criadoEm: DateTime.now(),
         imagens: tipoCriado == PublicacaoTipo.anuncio ? _imagens : null,
+        anuncioLogistica: tipoCriado == PublicacaoTipo.anuncio ? _logistica : null,
+        entregaCep: entregaCep,
+        entregaValorPorKm: entregaValorPorKm,
+        aceitaPropostas: tipoCriado == PublicacaoTipo.anuncio ? _aceitaPropostas : false,
       ),
     );
 
@@ -88,6 +105,10 @@ class _CriarPageState extends State<CriarPage> {
     _nomeController.clear();
     _descricaoController.clear();
     _precoController.clear();
+    _cepController.clear();
+    _valorPorKmController.clear();
+    _logistica = AnuncioLogistica.retiradaLocal;
+    _aceitaPropostas = false;
     _imagens.clear();
 
     if (!mounted) return;
@@ -132,7 +153,13 @@ class _CriarPageState extends State<CriarPage> {
                 if (value == null) return;
                 setState(() {
                   _tipo = value;
-                  if (_tipo != PublicacaoTipo.anuncio) _imagens.clear();
+                  if (_tipo != PublicacaoTipo.anuncio) {
+                    _imagens.clear();
+                    _cepController.clear();
+                    _valorPorKmController.clear();
+                    _logistica = AnuncioLogistica.retiradaLocal;
+                    _aceitaPropostas = false;
+                  }
                 });
               },
             ),
@@ -188,6 +215,95 @@ class _CriarPageState extends State<CriarPage> {
             ),
             const SizedBox(height: 16),
             if (_tipo == PublicacaoTipo.anuncio) ...[
+              Text(
+                'Entrega',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<AnuncioLogistica>(
+                key: ValueKey(_logistica),
+                initialValue: _logistica,
+                decoration: const InputDecoration(
+                  labelText: 'Como funciona?',
+                  border: OutlineInputBorder(),
+                ),
+                items: const [
+                  DropdownMenuItem(
+                    value: AnuncioLogistica.retiradaLocal,
+                    child: Text('Retirada no local'),
+                  ),
+                  DropdownMenuItem(
+                    value: AnuncioLogistica.entrega,
+                    child: Text('Faz entrega'),
+                  ),
+                ],
+                onChanged: (value) {
+                  if (value == null) return;
+                  setState(() {
+                    _logistica = value;
+                    if (_logistica != AnuncioLogistica.entrega) {
+                      _cepController.clear();
+                      _valorPorKmController.clear();
+                    }
+                  });
+                },
+              ),
+              if (_logistica == AnuncioLogistica.entrega) ...[
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _cepController,
+                  keyboardType: TextInputType.number,
+                  textInputAction: TextInputAction.next,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(8),
+                  ],
+                  decoration: const InputDecoration(
+                    labelText: 'Seu CEP (origem da entrega)',
+                    hintText: 'Ex: 12345678',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (_) {
+                    if (_tipo != PublicacaoTipo.anuncio ||
+                        _logistica != AnuncioLogistica.entrega) {
+                      return null;
+                    }
+                    final cep = _cepController.text.trim();
+                    if (cep.isEmpty) return 'Informe seu CEP.';
+                    if (cep.length != 8) return 'CEP deve ter 8 dígitos.';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _valorPorKmController,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: 'Quanto cobra por km (R\$)',
+                    hintText: 'Ex: 2,50',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (_) {
+                    if (_tipo != PublicacaoTipo.anuncio ||
+                        _logistica != AnuncioLogistica.entrega) {
+                      return null;
+                    }
+                    final parsed = parseMoneyInput(_valorPorKmController.text);
+                    if (parsed == null) return 'Informe o valor por km.';
+                    if (parsed <= 0) return 'O valor por km deve ser > 0.';
+                    return null;
+                  },
+                ),
+              ],
+              const SizedBox(height: 12),
+              SwitchListTile(
+                value: _aceitaPropostas,
+                onChanged: (value) => setState(() => _aceitaPropostas = value),
+                title: const Text('Aceita propostas de valor diferentes'),
+                contentPadding: EdgeInsets.zero,
+              ),
+              const SizedBox(height: 12),
               Text(
                 'Imagens',
                 style: Theme.of(context).textTheme.titleMedium,

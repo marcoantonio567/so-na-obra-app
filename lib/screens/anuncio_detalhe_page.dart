@@ -8,9 +8,26 @@ class AnuncioDetalhePage extends StatelessWidget {
 
   final Publicacao publicacao;
 
+  String? _formatCep(String? cep) {
+    final onlyDigits = (cep ?? '').replaceAll(RegExp(r'\D'), '');
+    if (onlyDigits.length != 8) return null;
+    return '${onlyDigits.substring(0, 5)}-${onlyDigits.substring(5)}';
+  }
+
   @override
   Widget build(BuildContext context) {
     final precoText = formatMoneyBRL(publicacao.preco);
+    final logistica =
+        publicacao.anuncioLogistica ?? AnuncioLogistica.retiradaLocal;
+    final cepText = _formatCep(publicacao.entregaCep);
+    final valorKm = publicacao.entregaValorPorKm;
+    final entregaSubtitle = logistica == AnuncioLogistica.entrega
+        ? [
+            'Faz entrega',
+            if (cepText != null) 'Origem: $cepText',
+            if (valorKm != null) '${formatMoneyBRL(valorKm)}/km',
+          ].join(' • ')
+        : 'Retirada no local';
 
     return Scaffold(
       appBar: AppBar(title: const Text('Detalhes do anúncio')),
@@ -69,6 +86,18 @@ class AnuncioDetalhePage extends StatelessWidget {
                       const SizedBox(height: 12),
                       Text(publicacao.descricao),
                       const SizedBox(height: 20),
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(Icons.local_shipping_outlined),
+                        title: const Text('Entrega/retirada'),
+                        subtitle: Text(entregaSubtitle),
+                      ),
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(Icons.handshake_outlined),
+                        title: const Text('Aceita propostas'),
+                        subtitle: Text(publicacao.aceitaPropostas ? 'Sim' : 'Não'),
+                      ),
                       ListTile(
                         contentPadding: EdgeInsets.zero,
                         leading: const Icon(Icons.storefront_outlined),

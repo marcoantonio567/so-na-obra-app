@@ -9,7 +9,7 @@ class LocalDatabase {
   static final LocalDatabase instance = LocalDatabase._();
 
   static const _dbName = 'so_na_obra.db';
-  static const _dbVersion = 1;
+  static const _dbVersion = 2;
   static const _publicacoesTable = 'publicacoes';
 
   Database? _database;
@@ -37,9 +37,29 @@ class LocalDatabase {
             descricao TEXT NOT NULL,
             preco REAL NOT NULL,
             criado_em TEXT NOT NULL,
-            imagens_json TEXT NOT NULL
+            imagens_json TEXT NOT NULL,
+            anuncio_logistica TEXT,
+            entrega_cep TEXT,
+            entrega_valor_por_km REAL,
+            aceita_propostas INTEGER NOT NULL DEFAULT 0
           )
         ''');
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          await db.execute(
+            'ALTER TABLE $_publicacoesTable ADD COLUMN anuncio_logistica TEXT',
+          );
+          await db.execute(
+            'ALTER TABLE $_publicacoesTable ADD COLUMN entrega_cep TEXT',
+          );
+          await db.execute(
+            'ALTER TABLE $_publicacoesTable ADD COLUMN entrega_valor_por_km REAL',
+          );
+          await db.execute(
+            'ALTER TABLE $_publicacoesTable ADD COLUMN aceita_propostas INTEGER NOT NULL DEFAULT 0',
+          );
+        }
       },
     );
   }
