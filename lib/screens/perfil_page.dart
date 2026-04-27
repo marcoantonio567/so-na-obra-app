@@ -13,6 +13,7 @@ class PerfilPage extends StatefulWidget {
     required this.foto,
     required this.onNomeAlterado,
     required this.onFotoAlterada,
+    required this.minhasSolicitacoes,
     required this.meusAnuncios,
   });
 
@@ -20,6 +21,7 @@ class PerfilPage extends StatefulWidget {
   final Uint8List? foto;
   final ValueChanged<String> onNomeAlterado;
   final ValueChanged<Uint8List?> onFotoAlterada;
+  final List<Publicacao> minhasSolicitacoes;
   final List<Publicacao> meusAnuncios;
 
   @override
@@ -182,6 +184,33 @@ class _PerfilPageState extends State<PerfilPage> {
           ),
         ),
         const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Minhas solicitações',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ),
+            Text('${widget.minhasSolicitacoes.length}'),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (widget.minhasSolicitacoes.isEmpty)
+          const Card(
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: Text('Você ainda não publicou nenhuma solicitação.'),
+            ),
+          )
+        else
+          ...widget.minhasSolicitacoes.map(
+            (p) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: PublicacaoCard(publicacao: p),
+            ),
+          ),
+        const SizedBox(height: 8),
         Row(
           children: [
             Expanded(

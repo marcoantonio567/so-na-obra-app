@@ -162,6 +162,15 @@ class _MainNavBarState extends State<MainNavBar> {
         .toList(growable: false);
   }
 
+  List<Publicacao> _minhasSolicitacoes() {
+    return _publicacoes
+        .where(
+          (p) =>
+              p.tipo == PublicacaoTipo.solicitacao && p.criadoPorId == _userId,
+        )
+        .toList(growable: false);
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -179,6 +188,7 @@ class _MainNavBarState extends State<MainNavBar> {
       PerfilPage(
         nome: _nomePerfil,
         foto: _fotoPerfil,
+        minhasSolicitacoes: _minhasSolicitacoes(),
         meusAnuncios: _meusAnuncios(),
         onNomeAlterado: (nome) => setState(() => _nomePerfil = nome),
         onFotoAlterada: (foto) => setState(() => _fotoPerfil = foto),
