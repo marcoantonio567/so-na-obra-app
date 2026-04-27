@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'screens/main_nav_bar.dart';
+import 'screens/login_page.dart';
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -12,8 +12,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
-      home: const MainNavBar(),
+      home: const LoginPage(),
     );
   }
 }
-

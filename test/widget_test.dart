@@ -14,6 +14,12 @@ void main() {
   testWidgets('Mostra a nav bar e navega entre abas', (WidgetTester tester) async {
     await tester.pumpWidget(const MyApp());
 
+    expect(find.text('Login'), findsOneWidget);
+    await tester.enterText(find.byType(TextFormField).at(0), 'Marco');
+    await tester.enterText(find.byType(TextFormField).at(1), '1234');
+    await tester.tap(find.text('Entrar'));
+    await tester.pump();
+
     for (var i = 0; i < 50; i++) {
       await tester.pump(const Duration(milliseconds: 100));
       if (find.byType(BottomNavigationBar).evaluate().isNotEmpty) break;
