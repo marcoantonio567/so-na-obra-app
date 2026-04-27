@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/publicacao.dart';
+import 'anuncio_detalhe_page.dart';
 import '../widgets/publicacao_card.dart';
 
 class AnunciosPage extends StatelessWidget {
@@ -20,9 +21,17 @@ class AnunciosPage extends StatelessWidget {
       separatorBuilder: (context, index) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final p = publicacoes[index];
-        return PublicacaoCard(publicacao: p);
+        return PublicacaoCard(
+          publicacao: p,
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => AnuncioDetalhePage(publicacao: p),
+              ),
+            );
+          },
+        );
       },
     );
   }
 }
-
