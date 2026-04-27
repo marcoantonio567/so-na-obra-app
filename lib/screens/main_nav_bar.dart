@@ -52,7 +52,15 @@ class _MainNavBarState extends State<MainNavBar> {
     _loadingFallbackTimer?.cancel();
     _loadingFallbackTimer = Timer(const Duration(seconds: 2), () {
       if (!mounted || !_isLoading) return;
-      final fallback = gerarPublicacoesFicticiasInstantanea(DateTime.now());
+      final now = DateTime.now();
+      final fallback = <Publicacao>[
+        ...gerarPublicacoesFicticiasInstantanea(now),
+        ...gerarPublicacoesFicticiasDoUsuarioInstantanea(
+          now: now,
+          userId: _userId,
+          userName: _nomePerfil,
+        ),
+      ];
       setState(() {
         _publicacoes
           ..clear()
@@ -72,6 +80,10 @@ class _MainNavBarState extends State<MainNavBar> {
     return lista.any((p) => p.criadoPorId == seedUserId);
   }
 
+  bool _temPublicacoesDoUsuario(List<Publicacao> lista) {
+    return lista.any((p) => p.criadoPorId == _userId);
+  }
+
   bool _temAnuncioSeedComImagem(List<Publicacao> lista) {
     return lista.any(
       (p) =>
@@ -82,15 +94,24 @@ class _MainNavBarState extends State<MainNavBar> {
   }
 
   Future<List<Publicacao>> _carregarPublicacoesPersistidas() async {
-    final lista = await _listarPublicacoesComTimeout();
+    var lista = await _listarPublicacoesComTimeout();
     if (!_temPublicacoesSeed(lista)) {
       await inserirPublicacoesFicticias(LocalDatabase.instance);
-      return _listarPublicacoesComTimeout();
+      lista = await _listarPublicacoesComTimeout();
     }
 
     if (!_temAnuncioSeedComImagem(lista)) {
       await inserirAnunciosFicticiosComImagens(LocalDatabase.instance);
-      return _listarPublicacoesComTimeout();
+      lista = await _listarPublicacoesComTimeout();
+    }
+
+    if (!_temPublicacoesDoUsuario(lista)) {
+      await inserirPublicacoesFicticiasDoUsuario(
+        database: LocalDatabase.instance,
+        userId: _userId,
+        userName: _nomePerfil,
+      );
+      lista = await _listarPublicacoesComTimeout();
     }
 
     return lista;
@@ -120,7 +141,15 @@ class _MainNavBarState extends State<MainNavBar> {
       if (!mounted) return;
       _atualizarPublicacoes(lista);
     } catch (_) {
-      final fallback = await gerarPublicacoesFicticias(DateTime.now());
+      final now = DateTime.now();
+      final fallback = <Publicacao>[
+        ...await gerarPublicacoesFicticias(now),
+        ...gerarPublicacoesFicticiasDoUsuarioInstantanea(
+          now: now,
+          userId: _userId,
+          userName: _nomePerfil,
+        ),
+      ];
       if (!mounted) return;
       _atualizarPublicacoes(fallback);
       _mostrarSnackBancoIndisponivel();

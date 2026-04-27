@@ -142,6 +142,58 @@ List<Publicacao> gerarPublicacoesFicticiasInstantanea(DateTime now) {
   ];
 }
 
+List<Publicacao> gerarPublicacoesFicticiasDoUsuarioInstantanea({
+  required DateTime now,
+  required String userId,
+  required String userName,
+}) {
+  final nome = userName.trim().isEmpty || userName.trim() == 'Seu nome'
+      ? 'Você'
+      : userName.trim();
+  final imagem = Uint8List.fromList(imagemPngPlaceholder);
+
+  return <Publicacao>[
+    Publicacao(
+      tipo: PublicacaoTipo.anuncio,
+      criadoPorId: userId,
+      criadoPorNome: nome,
+      nome: 'Escada extensível 3,8m',
+      descricao: 'Alumínio, leve e resistente. Ideal para pintura e telhado.',
+      preco: 320.0,
+      criadoEm: now.subtract(const Duration(days: 5)),
+      imagens: [imagem],
+    ),
+    Publicacao(
+      tipo: PublicacaoTipo.solicitacao,
+      criadoPorId: userId,
+      criadoPorNome: nome,
+      nome: 'Compra de cimento (10 sacos)',
+      descricao: 'Preciso para concretagem. Preferência por retirada hoje.',
+      preco: 420.0,
+      criadoEm: now.subtract(const Duration(days: 3)),
+    ),
+    Publicacao(
+      tipo: PublicacaoTipo.anuncio,
+      criadoPorId: userId,
+      criadoPorNome: nome,
+      nome: 'Carrinho de mão reforçado',
+      descricao: 'Aro pneumático, caçamba 60L. Usado poucas vezes.',
+      preco: 180.0,
+      criadoEm: now.subtract(const Duration(days: 2)),
+      imagens: [imagem],
+    ),
+    Publicacao(
+      tipo: PublicacaoTipo.solicitacao,
+      criadoPorId: userId,
+      criadoPorNome: nome,
+      nome: 'Serviço de eletricista',
+      descricao: 'Troca de disjuntores e revisão de tomadas em 3 cômodos.',
+      preco: 300.0,
+      criadoEm: now.subtract(const Duration(hours: 18)),
+    ),
+  ];
+}
+
 Future<Uint8List> criarImagemFicticia({
   required Color background,
   required Color accent,
@@ -310,5 +362,70 @@ Future<void> inserirAnunciosFicticiosComImagens(LocalDatabase database) async {
 
   for (final a in anuncios) {
     await database.inserirPublicacao(a);
+  }
+}
+
+Future<void> inserirPublicacoesFicticiasDoUsuario({
+  required LocalDatabase database,
+  required String userId,
+  required String userName,
+}) async {
+  final now = DateTime.now();
+  final nome = userName.trim().isEmpty || userName.trim() == 'Seu nome'
+      ? 'Você'
+      : userName.trim();
+
+  final imagem1 = await criarImagemFicticia(
+    background: Colors.teal,
+    accent: Colors.white,
+  );
+  final imagem2 = await criarImagemFicticia(
+    background: Colors.indigo,
+    accent: Colors.white,
+  );
+
+  final publicacoes = <Publicacao>[
+    Publicacao(
+      tipo: PublicacaoTipo.anuncio,
+      criadoPorId: userId,
+      criadoPorNome: nome,
+      nome: 'Escada extensível 3,8m',
+      descricao: 'Alumínio, leve e resistente. Ideal para pintura e telhado.',
+      preco: 320.0,
+      criadoEm: now.subtract(const Duration(days: 5)),
+      imagens: [imagem1],
+    ),
+    Publicacao(
+      tipo: PublicacaoTipo.solicitacao,
+      criadoPorId: userId,
+      criadoPorNome: nome,
+      nome: 'Compra de cimento (10 sacos)',
+      descricao: 'Preciso para concretagem. Preferência por retirada hoje.',
+      preco: 420.0,
+      criadoEm: now.subtract(const Duration(days: 3)),
+    ),
+    Publicacao(
+      tipo: PublicacaoTipo.anuncio,
+      criadoPorId: userId,
+      criadoPorNome: nome,
+      nome: 'Carrinho de mão reforçado',
+      descricao: 'Aro pneumático, caçamba 60L. Usado poucas vezes.',
+      preco: 180.0,
+      criadoEm: now.subtract(const Duration(days: 2)),
+      imagens: [imagem2],
+    ),
+    Publicacao(
+      tipo: PublicacaoTipo.solicitacao,
+      criadoPorId: userId,
+      criadoPorNome: nome,
+      nome: 'Serviço de eletricista',
+      descricao: 'Troca de disjuntores e revisão de tomadas em 3 cômodos.',
+      preco: 300.0,
+      criadoEm: now.subtract(const Duration(hours: 18)),
+    ),
+  ];
+
+  for (final p in publicacoes) {
+    await database.inserirPublicacao(p);
   }
 }
