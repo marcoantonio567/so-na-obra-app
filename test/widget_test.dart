@@ -14,6 +14,11 @@ void main() {
   testWidgets('Mostra a nav bar e navega entre abas', (WidgetTester tester) async {
     await tester.pumpWidget(const MyApp());
 
+    for (var i = 0; i < 50; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+      if (find.byType(BottomNavigationBar).evaluate().isNotEmpty) break;
+    }
+
     final bottomNav = find.byType(BottomNavigationBar);
     expect(bottomNav, findsOneWidget);
 
@@ -30,11 +35,11 @@ void main() {
     expect(find.descendant(of: appBar, matching: find.text('Home Page')), findsOneWidget);
 
     await tester.tap(find.text('Perfil'));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 300));
     expect(find.descendant(of: appBar, matching: find.text('Perfil')), findsOneWidget);
 
     await tester.tap(find.text('Solicitações'));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 300));
     expect(find.descendant(of: appBar, matching: find.text('Solicitações')), findsOneWidget);
   });
 }
