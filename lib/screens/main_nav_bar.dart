@@ -173,7 +173,7 @@ class _MainNavBarState extends State<MainNavBar> {
         criadoPorId: _userId,
         criadoPorNome: _nomePerfil,
       ),
-      const CarteiraPage(),
+      CarteiraPage(userId: _userId),
       PerfilPage(
         userId: _userId,
         nome: _nomePerfil,
