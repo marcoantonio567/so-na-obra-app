@@ -1,10 +1,12 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../data/local_database.dart';
 import '../../utils/formatters.dart';
+import '../../models/compra.dart';
+import '../../widgets/compra_card.dart';
+import '../../widgets/confirmar_recebimento_dialog.dart';
 
 class CarteiraPage extends StatefulWidget {
   const CarteiraPage({
@@ -25,18 +27,18 @@ class _CarteiraPageState extends State<CarteiraPage> {
   String? _pinRecebimento;
   bool _carregandoPin = true;
 
-  late final List<_Compra> _compras = [
-    _Compra(
+  late final List<Compra> _compras = [
+    Compra(
       nome: 'Kit de ferramentas',
       valor: 59.90,
       data: DateTime(2026, 4, 4),
     ),
-    _Compra(
+    Compra(
       nome: 'Luva de proteção',
       valor: 18.50,
       data: DateTime(2026, 4, 12),
     ),
-    _Compra(
+    Compra(
       nome: 'Botina de segurança',
       valor: 129.90,
       data: DateTime(2026, 4, 20),
@@ -183,7 +185,8 @@ class _CarteiraPageState extends State<CarteiraPage> {
 
     final ok = await showDialog<bool>(
       context: context,
-      builder: (_) => _ConfirmarRecebimentoDialog(pinCadastrado: pinCadastrado),
+      builder: (_) =>
+          ConfirmarRecebimentoDialog(pinCadastrado: pinCadastrado),
     );
     return ok ?? false;
   }
@@ -269,192 +272,12 @@ class _CarteiraPageState extends State<CarteiraPage> {
           ..._compras.asMap().entries.map((entry) {
             final index = entry.key;
             final c = entry.value;
-            final recebidoEm = c.recebidoEm;
-            return Card(
-              child: Column(
-                children: [
-                  ListTile(
-                    isThreeLine: c.recebido && recebidoEm != null,
-                    leading: Icon(
-                      c.recebido
-                          ? Icons.check_circle_outline
-                          : Icons.shopping_bag_outlined,
-                    ),
-                    title: Text(c.nome),
-                    subtitle: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(formatDateBR(c.data)),
-                        if (c.recebido && recebidoEm != null)
-                          Text('Recebido em ${formatDateBR(recebidoEm)}'),
-                      ],
-                    ),
-                    trailing: Text(formatMoneyBRL(c.valor)),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                    child: Align(
-                      alignment: Alignment.centerRight,
-                      child: c.recebido
-                          ? FilledButton.tonalIcon(
-                              onPressed: null,
-                              icon: const Icon(Icons.verified_outlined),
-                              label: const Text('Recebido'),
-                            )
-                          : FilledButton.icon(
-                              onPressed: _carregandoPin
-                                  ? null
-                                  : () => _confirmarRecebimento(index),
-                              icon: const Icon(Icons.verified_outlined),
-                              label: const Text('Confirmar recebimento'),
-                            ),
-                    ),
-                  ),
-                ],
-              ),
+            return CompraCard(
+              compra: c,
+              confirmEnabled: !_carregandoPin,
+              onConfirmarRecebimento: () => _confirmarRecebimento(index),
             );
           }),
-      ],
-    );
-  }
-}
-
-class _Compra {
-  _Compra({
-    required this.nome,
-    required this.valor,
-    required this.data,
-    this.recebido = false,
-    this.recebidoEm,
-  });
-
-  final String nome;
-  final double valor;
-  final DateTime data;
-  final bool recebido;
-  final DateTime? recebidoEm;
-
-  _Compra copyWith({
-    bool? recebido,
-    DateTime? recebidoEm,
-  }) {
-    return _Compra(
-      nome: nome,
-      valor: valor,
-      data: data,
-      recebido: recebido ?? this.recebido,
-      recebidoEm: recebidoEm ?? this.recebidoEm,
-    );
-  }
-}
-
-class _ConfirmarRecebimentoDialog extends StatefulWidget {
-  const _ConfirmarRecebimentoDialog({
-    required this.pinCadastrado,
-  });
-
-  final String pinCadastrado;
-
-  @override
-  State<_ConfirmarRecebimentoDialog> createState() =>
-      _ConfirmarRecebimentoDialogState();
-}
-
-class _ConfirmarRecebimentoDialogState
-    extends State<_ConfirmarRecebimentoDialog> {
-  final _controller = TextEditingController();
-  final _formKey = GlobalKey<FormState>();
-  bool _pinVisivel = false;
-  String? _erroPin;
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _confirmar() {
-    final isValid = _formKey.currentState?.validate() ?? false;
-    if (!isValid) return;
-
-    final digitado = _controller.text.trim();
-    if (digitado != widget.pinCadastrado) {
-      if (!mounted) return;
-      setState(() => _erroPin = 'PIN incorreto.');
-      return;
-    }
-
-    Navigator.of(context).pop(true);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Confirmar recebimento'),
-      content: SingleChildScrollView(
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              TextFormField(
-                controller: _controller,
-                autofocus: true,
-                keyboardType: TextInputType.number,
-                textInputAction: TextInputAction.done,
-                obscureText: !_pinVisivel,
-                autovalidateMode: AutovalidateMode.onUserInteraction,
-                inputFormatters: [
-                  FilteringTextInputFormatter.digitsOnly,
-                  LengthLimitingTextInputFormatter(6),
-                ],
-                onChanged: (_) {
-                  if (_erroPin == null) return;
-                  setState(() => _erroPin = null);
-                },
-                decoration: InputDecoration(
-                  labelText: 'PIN (6 dígitos)',
-                  border: const OutlineInputBorder(),
-                  suffixIcon: IconButton(
-                    onPressed: () => setState(() => _pinVisivel = !_pinVisivel),
-                    icon: Icon(
-                      _pinVisivel
-                          ? Icons.visibility_off_outlined
-                          : Icons.visibility_outlined,
-                    ),
-                    tooltip: _pinVisivel ? 'Ocultar' : 'Mostrar',
-                  ),
-                ),
-                validator: (value) {
-                  final v = (value ?? '').trim();
-                  if (v.isEmpty) return 'Informe o PIN.';
-                  if (v.length != 6) return 'O PIN deve ter 6 dígitos.';
-                  return null;
-                },
-                onFieldSubmitted: (_) => _confirmar(),
-              ),
-              if (_erroPin != null) ...[
-                const SizedBox(height: 8),
-                Text(
-                  _erroPin!,
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(false),
-          child: const Text('Cancelar'),
-        ),
-        FilledButton(
-          onPressed: _confirmar,
-          child: const Text('Confirmar'),
-        ),
       ],
     );
   }
