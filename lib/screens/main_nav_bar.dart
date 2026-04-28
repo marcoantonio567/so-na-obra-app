@@ -175,6 +175,7 @@ class _MainNavBarState extends State<MainNavBar> {
       ),
       const CarteiraPage(),
       PerfilPage(
+        userId: _userId,
         nome: _nomePerfil,
         foto: _fotoPerfil,
         minhasSolicitacoes: _minhasSolicitacoes(),

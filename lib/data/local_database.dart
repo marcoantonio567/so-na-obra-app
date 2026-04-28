@@ -9,8 +9,9 @@ class LocalDatabase {
   static final LocalDatabase instance = LocalDatabase._();
 
   static const _dbName = 'so_na_obra.db';
-  static const _dbVersion = 2;
+  static const _dbVersion = 3;
   static const _publicacoesTable = 'publicacoes';
+  static const _userSettingsTable = 'user_settings';
 
   Database? _database;
 
@@ -44,6 +45,15 @@ class LocalDatabase {
             aceita_propostas INTEGER NOT NULL DEFAULT 0
           )
         ''');
+
+        await db.execute('''
+          CREATE TABLE $_userSettingsTable (
+            user_id TEXT NOT NULL,
+            setting_key TEXT NOT NULL,
+            setting_value TEXT NOT NULL,
+            PRIMARY KEY (user_id, setting_key)
+          )
+        ''');
       },
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
@@ -60,6 +70,17 @@ class LocalDatabase {
             'ALTER TABLE $_publicacoesTable ADD COLUMN aceita_propostas INTEGER NOT NULL DEFAULT 0',
           );
         }
+
+        if (oldVersion < 3) {
+          await db.execute('''
+            CREATE TABLE IF NOT EXISTS $_userSettingsTable (
+              user_id TEXT NOT NULL,
+              setting_key TEXT NOT NULL,
+              setting_value TEXT NOT NULL,
+              PRIMARY KEY (user_id, setting_key)
+            )
+          ''');
+        }
       },
     );
   }
@@ -75,5 +96,58 @@ class LocalDatabase {
     final data = publicacao.toDbMap()..remove('id');
     final id = await db.insert(_publicacoesTable, data);
     return publicacao.copyWith(id: id);
+  }
+
+  Future<void> _garantirTabelaSettings(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $_userSettingsTable (
+        user_id TEXT NOT NULL,
+        setting_key TEXT NOT NULL,
+        setting_value TEXT NOT NULL,
+        PRIMARY KEY (user_id, setting_key)
+      )
+    ''');
+  }
+
+  Future<String?> obterSetting({
+    required String userId,
+    required String key,
+  }) async {
+    final db = await database;
+    await _garantirTabelaSettings(db);
+    final rows = await db.query(
+      _userSettingsTable,
+      columns: ['setting_value'],
+      where: 'user_id = ? AND setting_key = ?',
+      whereArgs: [userId, key],
+      limit: 1,
+    );
+    if (rows.isEmpty) return null;
+    return rows.first['setting_value'] as String?;
+  }
+
+  Future<void> salvarSetting({
+    required String userId,
+    required String key,
+    required String value,
+  }) async {
+    final db = await database;
+    await _garantirTabelaSettings(db);
+    await db.insert(
+      _userSettingsTable,
+      {'user_id': userId, 'setting_key': key, 'setting_value': value},
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<String?> obterPinRecebimento({required String userId}) {
+    return obterSetting(userId: userId, key: 'pin_recebimento');
+  }
+
+  Future<void> salvarPinRecebimento({
+    required String userId,
+    required String pin,
+  }) {
+    return salvarSetting(userId: userId, key: 'pin_recebimento', value: pin);
   }
 }

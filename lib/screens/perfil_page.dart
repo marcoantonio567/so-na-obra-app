@@ -1,14 +1,19 @@
-import 'dart:typed_data';
+import 'dart:math';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import '../data/local_database.dart';
 import '../models/publicacao.dart';
 import '../widgets/publicacao_card.dart';
 
 class PerfilPage extends StatefulWidget {
   const PerfilPage({
     super.key,
+    required this.userId,
     required this.nome,
     required this.foto,
     required this.onNomeAlterado,
@@ -17,6 +22,7 @@ class PerfilPage extends StatefulWidget {
     required this.meusAnuncios,
   });
 
+  final String userId;
   final String nome;
   final Uint8List? foto;
   final ValueChanged<String> onNomeAlterado;
@@ -29,6 +35,140 @@ class PerfilPage extends StatefulWidget {
 }
 
 class _PerfilPageState extends State<PerfilPage> {
+  static final Map<String, String> _pinMemCache = {};
+
+  String? _pinRecebimento;
+  bool _pinVisivel = false;
+  bool _carregandoPin = true;
+
+  String get _pinPrefsKey => 'pin_recebimento:${widget.userId}';
+
+  @override
+  void initState() {
+    super.initState();
+    _carregarPin();
+  }
+
+  Future<void> _carregarPin() async {
+    setState(() => _carregandoPin = true);
+    String? pin;
+    try {
+      if (kIsWeb) {
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          pin = prefs.getString(_pinPrefsKey);
+          if ((pin ?? '').trim().isEmpty) pin = null;
+        } catch (_) {
+          pin = _pinMemCache[widget.userId];
+        }
+      } else {
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          pin = prefs.getString(_pinPrefsKey);
+          if ((pin ?? '').trim().isEmpty) pin = null;
+        } catch (_) {
+          pin = null;
+        }
+
+        if (pin == null) {
+          try {
+            pin = await LocalDatabase.instance
+                .obterPinRecebimento(userId: widget.userId);
+            if ((pin ?? '').trim().isEmpty) pin = null;
+          } catch (_) {
+            pin = null;
+          }
+
+          if (pin != null) {
+            try {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setString(_pinPrefsKey, pin);
+            } catch (_) {}
+          }
+        }
+      }
+    } catch (_) {
+      pin = null;
+    }
+    if (!mounted) return;
+    setState(() {
+      _pinRecebimento = pin;
+      _carregandoPin = false;
+    });
+  }
+
+  String _gerarPin() {
+    Random rng;
+    try {
+      rng = Random.secure();
+    } catch (_) {
+      rng = Random();
+    }
+    final n = rng.nextInt(1000000);
+    return n.toString().padLeft(6, '0');
+  }
+
+  Future<void> _gerarOuRegenerarPin() async {
+    final novo = _gerarPin();
+    setState(() => _carregandoPin = true);
+    String? message;
+    var savedPersistently = false;
+
+    if (kIsWeb) {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        savedPersistently = await prefs.setString(_pinPrefsKey, novo);
+      } catch (_) {
+        savedPersistently = false;
+      }
+
+      if (!savedPersistently) {
+        _pinMemCache[widget.userId] = novo;
+        message =
+            'No navegador, não foi possível salvar nos dados do site. Verifique se o Edge está bloqueando cookies/dados do site (ou modo InPrivate).';
+      }
+    } else {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        savedPersistently = await prefs.setString(_pinPrefsKey, novo);
+      } catch (_) {
+        savedPersistently = false;
+      }
+
+      try {
+        await LocalDatabase.instance
+            .salvarPinRecebimento(userId: widget.userId, pin: novo);
+      } catch (_) {}
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _carregandoPin = false;
+      _pinRecebimento = novo;
+      _pinVisivel = true;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          message ??
+              (savedPersistently
+                  ? 'PIN gerado e salvo com sucesso.'
+                  : 'PIN gerado (não foi possível salvar).'),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _copiarPin() async {
+    final pin = _pinRecebimento;
+    if (pin == null || pin.isEmpty) return;
+    await Clipboard.setData(ClipboardData(text: pin));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('PIN copiado.')),
+    );
+  }
+
   Future<void> _trocarFoto() async {
     final picker = ImagePicker();
     final file = await picker.pickImage(
@@ -118,6 +258,8 @@ class _PerfilPageState extends State<PerfilPage> {
   @override
   Widget build(BuildContext context) {
     final nomeExibicao = widget.nome.trim().isEmpty ? 'Seu nome' : widget.nome;
+    final pin = _pinRecebimento;
+    final pinMascara = pin == null ? '—' : '••••••';
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -181,6 +323,94 @@ class _PerfilPageState extends State<PerfilPage> {
                 onTap: _editarNome,
               ),
             ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.lock_outline),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'PIN de recebimento',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                    ),
+                    if (pin != null)
+                      IconButton(
+                        onPressed: _copiarPin,
+                        icon: const Icon(Icons.copy_outlined),
+                        tooltip: 'Copiar',
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    color: Theme.of(context).colorScheme.surfaceContainer,
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          _carregandoPin
+                              ? 'Carregando...'
+                              : (pin == null
+                                  ? 'Nenhum PIN gerado ainda.'
+                                  : (_pinVisivel ? pin : pinMascara)),
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                      ),
+                      if (pin != null && !_carregandoPin)
+                        IconButton(
+                          onPressed: () =>
+                              setState(() => _pinVisivel = !_pinVisivel),
+                          icon: Icon(
+                            _pinVisivel
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
+                          ),
+                          tooltip: _pinVisivel ? 'Ocultar' : 'Mostrar',
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Use este PIN para confirmar o recebimento da mercadoria.',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: [
+                    FilledButton.icon(
+                      onPressed: _carregandoPin ? null : _gerarOuRegenerarPin,
+                      icon: Icon(pin == null ? Icons.key : Icons.refresh),
+                      label: Text(pin == null ? 'Gerar PIN' : 'Gerar novo PIN'),
+                    ),
+                    if (pin != null)
+                      OutlinedButton.icon(
+                        onPressed: _carregandoPin ? null : _copiarPin,
+                        icon: const Icon(Icons.copy_outlined),
+                        label: const Text('Copiar'),
+                      ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
         const SizedBox(height: 16),
