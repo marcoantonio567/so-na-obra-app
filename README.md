@@ -1,75 +1,79 @@
-# Só na Obra
+# Only at the Construction Site
 
-Aplicativo Flutter com foco em anúncios e solicitações, com persistência local via SQLite (`sqflite`).
+Flutter application focused on announcements and requests, with local persistence via SQLite (`sqflite`).
 
-## Funcionalidades
+## Features
 
-- Login e cadastro (fluxo local para demonstração)
-- Navegação por abas: Solicitações, Home (Anúncios), Criar, Carteira, Perfil
-- Criação de anúncios e solicitações
-- Upload de múltiplas imagens para anúncios (galeria)
-- Busca por texto e filtro por período (hoje / últimos 7 / últimos 30 dias)
-- Carteira (saldo, histórico de compras e confirmação de recebimento via PIN)
-- Perfil (troca de nome e foto, geração/copiar PIN de recebimento)
-- Persistência local (SQLite) e seeds automáticos na primeira execução
+- Login and registration (local flow for demonstration)
+- Tabbed navigation: Requests, Home (Ads), Create, Wallet, Profile
+- Creation of ads and requests
+- Upload of multiple images for ads (gallery)
+- Search by text and filter by period (today / last 7 / last 30 days)
+- Wallet (balance, purchase history and receipt confirmation via PIN)
+- Profile (change name and photo, generate/copy receipt PIN)
+- Local persistence (SQLite) and automatic seeds on first run
 
-## Tecnologias
+## Technologies
 
 - Flutter / Dart
-- `sqflite` + `path` (banco local)
-- `image_picker` (seleção de imagens)
-- `shared_preferences` (preferências simples, ex.: PIN no web)
+- `sqflite` + `path` (local database)
+- `image_picker` (image selection)
+- `shared_preferences` (simple preferences, e.g., PIN on the web)
 
-## Como rodar
+## How to run
 
-Pré-requisitos:
+Prerequisites:
 
-- Flutter instalado e configurado no PATH
-- SDK do Dart compatível (o projeto usa `sdk: ^3.11.5`)
+- Flutter installed and configured in the PATH
+- Compatible Dart SDK (the project uses SDK: ^3.11.5
 
-Comandos:
+Commands:
 
 ```bash
 flutter pub get
 flutter run
+
 ```
 
-Dicas de dispositivos:
+Device tips:
 
 ```bash
 flutter devices
 flutter run -d chrome
 flutter run -d windows
+
 ```
 
-## Como usar (demo)
+## How to use (demo)
 
-- Na tela de Login, informe qualquer nome e uma senha com pelo menos 4 caracteres
-- Após entrar, use a aba Criar para publicar um anúncio (com imagens) ou uma solicitação
-- A aba Perfil permite alterar nome e foto (local)
+- On the Login screen, enter any name and a password with at least 4 characters
+- After logging in, use the Create tab to publish an ad (with images) or a request
+- The Profile tab allows you to change your name and photo (location)
 
-## Dados e persistência
+## Data and persistence
 
-- Banco local: `so_na_obra.db` (SQLite via `sqflite`)
-- Tabelas principais:
-  - `publicacoes`: anúncios e solicitações
-  - `user_settings`: configurações por usuário (ex.: `pin_recebimento`)
-- Seeds: na primeira execução, o app popula publicações fictícias automaticamente (incluindo exemplos com imagens).
+- Local database: `so_na_obra.db` (SQLite via `sqflite`)
+- Main tables:
 
-## Estrutura do projeto
+- `publicacoes`: ads and requests
 
-- `lib/app.dart`: configuração do app e rota inicial
-- `lib/screens/`: telas (login, navegação principal, anúncios, solicitações, criar, perfil, etc.)
-- `lib/models/`: modelos (ex.: `Publicacao`)
-- `lib/data/`: banco local (`LocalDatabase`) e seeds
-- `lib/services/`: regras de carregamento/salvamento de publicações
-- `lib/widgets/`: componentes reutilizáveis (ex.: card de publicação)
+- `user_settings`: user settings (e.g., `pin_recebimento`)
+- Seeds: on the first run, the app automatically populates dummy posts (including examples with images).
 
-## Observações
+## Project Structure
 
-- Web: `sqflite` não é suportado no navegador; algumas funcionalidades de persistência podem não funcionar corretamente em `-d chrome`.
+- `lib/app.dart`: app configuration and initial route
+- `lib/screens/`: screens (login, main navigation, announcements, requests, create, profile, etc.)
+- `lib/models/`: models (e.g., `Publicacao`)
+- `lib/data/`: local database (`LocalDatabase`) and seeds
+- `lib/services/`: rules for loading/saving publications
+- `lib/widgets/`: reusable components (e.g., publication card)
 
-## Testes e análise
+## Notes
+
+- Web: `sqflite` is not supported in the browser; some persistence functionalities may not work correctly in `-d chrome`.
+
+## Testing and Analysis
 
 ```bash
 flutter test
