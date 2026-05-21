@@ -9,29 +9,33 @@ class PublicacoesSection extends StatelessWidget {
     required this.titulo,
     required this.emptyText,
     required this.publicacoes,
+    this.mostrarCabecalho = true,
   });
 
   final String titulo;
   final String emptyText;
   final List<Publicacao> publicacoes;
+  final bool mostrarCabecalho;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                titulo,
-                style: Theme.of(context).textTheme.titleMedium,
+        if (mostrarCabecalho) ...[
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  titulo,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
               ),
-            ),
-            Text('${publicacoes.length}'),
-          ],
-        ),
-        const SizedBox(height: 12),
+              Text('${publicacoes.length}'),
+            ],
+          ),
+          const SizedBox(height: 12),
+        ],
         if (publicacoes.isEmpty)
           Card(
             child: Padding(

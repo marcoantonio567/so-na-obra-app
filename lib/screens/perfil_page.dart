@@ -38,6 +38,7 @@ class _PerfilPageState extends State<PerfilPage> {
   String? _pinRecebimento;
   bool _pinVisivel = false;
   bool _carregandoPin = true;
+  int _publicacoesTabIndex = 0;
 
   PinRecebimentoStore get _pinStore => PinRecebimentoStore(
         userId: widget.userId,
@@ -182,53 +183,91 @@ class _PerfilPageState extends State<PerfilPage> {
     widget.onNomeAlterado(trimmed);
   }
 
+  Widget _buildPublicacoesTabs() {
+    final tabs = [
+      (
+        label: 'Minhas solicitações',
+        count: widget.minhasSolicitacoes.length,
+        section: PublicacoesSection(
+          titulo: 'Minhas solicitações',
+          emptyText: 'Você ainda não publicou nenhuma solicitação.',
+          publicacoes: widget.minhasSolicitacoes,
+          mostrarCabecalho: false,
+        ),
+      ),
+      (
+        label: 'Meus anúncios',
+        count: widget.meusAnuncios.length,
+        section: PublicacoesSection(
+          titulo: 'Meus anúncios',
+          emptyText: 'Você ainda não publicou nenhum anúncio.',
+          publicacoes: widget.meusAnuncios,
+          mostrarCabecalho: false,
+        ),
+      ),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        TabBar(
+          tabs: [
+            for (final tab in tabs)
+              Tab(
+                child: FittedBox(child: Text('${tab.label} (${tab.count})')),
+              ),
+          ],
+          onTap: (index) {
+            setState(() => _publicacoesTabIndex = index);
+          },
+        ),
+        const SizedBox(height: 12),
+        tabs[_publicacoesTabIndex].section,
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final nomeExibicao = widget.nome.trim().isEmpty ? 'Seu nome' : widget.nome;
 
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        PerfilHeaderCard(
-          nome: nomeExibicao,
-          foto: widget.foto,
-          onTrocarFoto: _trocarFoto,
-          onRemoverFoto: () => widget.onFotoAlterada(null),
-        ),
-        const SizedBox(height: 12),
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.badge_outlined),
-            title: const Text('Nome'),
-            subtitle: Text(nomeExibicao),
-            trailing: const Icon(Icons.edit_outlined),
-            onTap: _editarNome,
+    return DefaultTabController(
+      length: 2,
+      initialIndex: _publicacoesTabIndex,
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          PerfilHeaderCard(
+            nome: nomeExibicao,
+            foto: widget.foto,
+            onTrocarFoto: _trocarFoto,
+            onRemoverFoto: () => widget.onFotoAlterada(null),
           ),
-        ),
-        const SizedBox(height: 12),
-        PinRecebimentoCard(
-          pin: _pinRecebimento,
-          carregando: _carregandoPin,
-          visivel: _pinVisivel,
-          onCopiar: _copiarPin,
-          onGerarOuRegenerar: _gerarOuRegenerarPin,
-          onAlternarVisibilidade: () {
-            setState(() => _pinVisivel = !_pinVisivel);
-          },
-        ),
-        const SizedBox(height: 16),
-        PublicacoesSection(
-          titulo: 'Minhas solicitações',
-          emptyText: 'Você ainda não publicou nenhuma solicitação.',
-          publicacoes: widget.minhasSolicitacoes,
-        ),
-        const SizedBox(height: 8),
-        PublicacoesSection(
-          titulo: 'Meus anúncios',
-          emptyText: 'Você ainda não publicou nenhum anúncio.',
-          publicacoes: widget.meusAnuncios,
-        ),
-      ],
+          const SizedBox(height: 12),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.badge_outlined),
+              title: const Text('Nome'),
+              subtitle: Text(nomeExibicao),
+              trailing: const Icon(Icons.edit_outlined),
+              onTap: _editarNome,
+            ),
+          ),
+          const SizedBox(height: 12),
+          PinRecebimentoCard(
+            pin: _pinRecebimento,
+            carregando: _carregandoPin,
+            visivel: _pinVisivel,
+            onCopiar: _copiarPin,
+            onGerarOuRegenerar: _gerarOuRegenerarPin,
+            onAlternarVisibilidade: () {
+              setState(() => _pinVisivel = !_pinVisivel);
+            },
+          ),
+          const SizedBox(height: 16),
+          _buildPublicacoesTabs(),
+        ],
+      ),
     );
   }
 }
