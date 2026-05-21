@@ -1,30 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../models/publicacao.dart';
-import '../utils/formatters.dart';
 import '../widgets/publicacao_card.dart';
-
-enum _FiltroData { todas, hoje, ultimos7Dias, ultimos30Dias }
-
-extension on _FiltroData {
-  String get label {
-    return switch (this) {
-      _FiltroData.todas => 'Todas',
-      _FiltroData.hoje => 'Hoje',
-      _FiltroData.ultimos7Dias => 'Últimos 7 dias',
-      _FiltroData.ultimos30Dias => 'Últimos 30 dias',
-    };
-  }
-
-  int? get dias {
-    return switch (this) {
-      _FiltroData.todas => null,
-      _FiltroData.hoje => 1,
-      _FiltroData.ultimos7Dias => 7,
-      _FiltroData.ultimos30Dias => 30,
-    };
-  }
-}
+import 'solicitacoes/filtro_data.dart';
+import 'solicitacoes/solicitacao_detalhe_page.dart';
+import 'solicitacoes/solicitacoes_filter_bar.dart';
 
 class SolicitacoesPage extends StatefulWidget {
   const SolicitacoesPage({super.key, required this.publicacoes});
@@ -37,7 +17,7 @@ class SolicitacoesPage extends StatefulWidget {
 
 class _SolicitacoesPageState extends State<SolicitacoesPage> {
   String _busca = '';
-  _FiltroData _filtroData = _FiltroData.todas;
+  FiltroData _filtroData = FiltroData.todas;
 
   Future<void> _abrirBusca() async {
     final controller = TextEditingController(text: _busca);
@@ -70,8 +50,15 @@ class _SolicitacoesPageState extends State<SolicitacoesPage> {
       },
     );
 
+    controller.dispose();
     if (!mounted) return;
     setState(() => _busca = (resultado ?? '').trim());
+  }
+
+  List<Publicacao> get _filtradas {
+    return widget.publicacoes
+        .where((p) => _matchBusca(p) && _matchData(p))
+        .toList(growable: false);
   }
 
   bool _matchBusca(Publicacao p) {
@@ -92,12 +79,6 @@ class _SolicitacoesPageState extends State<SolicitacoesPage> {
     return !criado.isBefore(inicio);
   }
 
-  List<Publicacao> get _filtradas {
-    return widget.publicacoes
-        .where((p) => _matchBusca(p) && _matchData(p))
-        .toList(growable: false);
-  }
-
   @override
   Widget build(BuildContext context) {
     if (widget.publicacoes.isEmpty) {
@@ -108,41 +89,12 @@ class _SolicitacoesPageState extends State<SolicitacoesPage> {
 
     return Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-          child: Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              FilledButton.icon(
-                onPressed: _abrirBusca,
-                icon: const Icon(Icons.search),
-                label: Text(_busca.isEmpty ? 'Buscar' : 'Buscar: $_busca'),
-              ),
-              DropdownButton<_FiltroData>(
-                value: _filtroData,
-                items: _FiltroData.values
-                    .map(
-                      (f) => DropdownMenuItem<_FiltroData>(
-                        value: f,
-                        child: Text(f.label),
-                      ),
-                    )
-                    .toList(growable: false),
-                onChanged: (value) {
-                  if (value == null) return;
-                  setState(() => _filtroData = value);
-                },
-              ),
-              if (_busca.isNotEmpty)
-                IconButton(
-                  onPressed: () => setState(() => _busca = ''),
-                  icon: const Icon(Icons.clear),
-                  tooltip: 'Limpar busca',
-                ),
-            ],
-          ),
+        SolicitacoesFilterBar(
+          busca: _busca,
+          filtroData: _filtroData,
+          onAbrirBusca: _abrirBusca,
+          onLimparBusca: () => setState(() => _busca = ''),
+          onFiltroChanged: (value) => setState(() => _filtroData = value),
         ),
         Expanded(
           child: lista.isEmpty
@@ -153,14 +105,15 @@ class _SolicitacoesPageState extends State<SolicitacoesPage> {
                   separatorBuilder: (context, index) =>
                       const SizedBox(height: 12),
                   itemBuilder: (context, index) {
-                    final p = lista[index];
+                    final publicacao = lista[index];
                     return PublicacaoCard(
-                      publicacao: p,
+                      publicacao: publicacao,
                       onTap: () {
                         Navigator.of(context).push(
                           MaterialPageRoute<void>(
-                            builder: (_) =>
-                                SolicitacaoDetalhePage(publicacao: p),
+                            builder: (_) => SolicitacaoDetalhePage(
+                              publicacao: publicacao,
+                            ),
                           ),
                         );
                       },
@@ -169,110 +122,6 @@ class _SolicitacoesPageState extends State<SolicitacoesPage> {
                 ),
         ),
       ],
-    );
-  }
-}
-
-class SolicitacaoDetalhePage extends StatelessWidget {
-  const SolicitacaoDetalhePage({super.key, required this.publicacao});
-
-  final Publicacao publicacao;
-
-  @override
-  Widget build(BuildContext context) {
-    final precoText = formatMoneyBRL(publicacao.preco);
-
-    return Scaffold(
-      appBar: AppBar(title: const Text('Detalhes da solicitação')),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (publicacao.imagens.isNotEmpty)
-                        SizedBox(
-                          height: 220,
-                          child: ListView.separated(
-                            scrollDirection: Axis.horizontal,
-                            itemCount: publicacao.imagens.length,
-                            separatorBuilder: (context, index) =>
-                                const SizedBox(width: 12),
-                            itemBuilder: (context, index) {
-                              return ClipRRect(
-                                borderRadius: BorderRadius.circular(16),
-                                child: Image.memory(
-                                  publicacao.imagens[index],
-                                  width: 220,
-                                  height: 220,
-                                  fit: BoxFit.cover,
-                                ),
-                              );
-                            },
-                          ),
-                        )
-                      else
-                        Container(
-                          height: 220,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.surfaceContainer,
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: const Icon(Icons.image_not_supported_outlined),
-                        ),
-                      const SizedBox(height: 16),
-                      Text(
-                        publicacao.nome,
-                        style: Theme.of(context).textTheme.headlineSmall,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        precoText,
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                      const SizedBox(height: 12),
-                      Text(publicacao.descricao),
-                      const SizedBox(height: 20),
-                      ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: const Icon(Icons.person_outline),
-                        title: const Text('Solicitante'),
-                        subtitle: Text(publicacao.criadoPorNome),
-                      ),
-                      ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: const Icon(Icons.calendar_today_outlined),
-                        title: const Text('Publicado em'),
-                        subtitle: Text(formatDateBR(publicacao.criadoEm)),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              FilledButton.icon(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Avisando ${publicacao.criadoPorNome} que você tem esse produto...',
-                      ),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.check_circle_outline),
-                label: const Text('Eu tenho esse produto'),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

@@ -1,9 +1,13 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../models/publicacao.dart';
 import '../utils/formatters.dart';
+import 'criar/criar_tipo_dropdown.dart';
+import 'criar/entrega_fields.dart';
+import 'criar/imagens_picker_section.dart';
 
 class CriarPage extends StatefulWidget {
   const CriarPage({
@@ -54,10 +58,6 @@ class _CriarPageState extends State<CriarPage> {
     setState(() => _imagens.addAll(bytesList));
   }
 
-  void _removerImagem(int index) {
-    setState(() => _imagens.removeAt(index));
-  }
-
   String get _labelNome =>
       _tipo == PublicacaoTipo.solicitacao ? 'Nome do que procura' : 'Produto';
 
@@ -69,19 +69,39 @@ class _CriarPageState extends State<CriarPage> {
       ? 'Preço que pagaria (R\$)'
       : 'Preço de venda (R\$)';
 
+  void _alterarTipo(PublicacaoTipo value) {
+    setState(() {
+      _tipo = value;
+      if (_tipo != PublicacaoTipo.anuncio) _limparCamposDeAnuncio();
+    });
+  }
+
+  void _alterarLogistica(AnuncioLogistica value) {
+    setState(() {
+      _logistica = value;
+      if (_logistica != AnuncioLogistica.entrega) {
+        _cepController.clear();
+        _valorPorKmController.clear();
+      }
+    });
+  }
+
+  void _limparCamposDeAnuncio() {
+    _imagens.clear();
+    _cepController.clear();
+    _valorPorKmController.clear();
+    _logistica = AnuncioLogistica.retiradaLocal;
+    _aceitaPropostas = false;
+  }
+
   void _submit() {
     final isValid = _formKey.currentState?.validate() ?? false;
     if (!isValid) return;
 
     final tipoCriado = _tipo;
     final preco = double.parse(_precoController.text.replaceAll(',', '.'));
-
-    final isEntrega =
-        tipoCriado == PublicacaoTipo.anuncio && _logistica == AnuncioLogistica.entrega;
-    final entregaCep =
-        isEntrega ? _cepController.text.trim().replaceAll(RegExp(r'\D'), '') : null;
-    final entregaValorPorKm =
-        isEntrega ? parseMoneyInput(_valorPorKmController.text) : null;
+    final isEntrega = tipoCriado == PublicacaoTipo.anuncio &&
+        _logistica == AnuncioLogistica.entrega;
 
     widget.onCriar(
       Publicacao(
@@ -93,24 +113,19 @@ class _CriarPageState extends State<CriarPage> {
         preco: preco,
         criadoEm: DateTime.now(),
         imagens: tipoCriado == PublicacaoTipo.anuncio ? _imagens : null,
-        anuncioLogistica: tipoCriado == PublicacaoTipo.anuncio ? _logistica : null,
-        entregaCep: entregaCep,
-        entregaValorPorKm: entregaValorPorKm,
-        aceitaPropostas: tipoCriado == PublicacaoTipo.anuncio ? _aceitaPropostas : false,
+        anuncioLogistica:
+            tipoCriado == PublicacaoTipo.anuncio ? _logistica : null,
+        entregaCep: isEntrega
+            ? _cepController.text.trim().replaceAll(RegExp(r'\D'), '')
+            : null,
+        entregaValorPorKm:
+            isEntrega ? parseMoneyInput(_valorPorKmController.text) : null,
+        aceitaPropostas:
+            tipoCriado == PublicacaoTipo.anuncio ? _aceitaPropostas : false,
       ),
     );
 
-    setState(() => _tipo = PublicacaoTipo.anuncio);
-    _formKey.currentState?.reset();
-    _nomeController.clear();
-    _descricaoController.clear();
-    _precoController.clear();
-    _cepController.clear();
-    _valorPorKmController.clear();
-    _logistica = AnuncioLogistica.retiradaLocal;
-    _aceitaPropostas = false;
-    _imagens.clear();
-
+    _resetForm();
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -123,6 +138,15 @@ class _CriarPageState extends State<CriarPage> {
     );
   }
 
+  void _resetForm() {
+    setState(() => _tipo = PublicacaoTipo.anuncio);
+    _formKey.currentState?.reset();
+    _nomeController.clear();
+    _descricaoController.clear();
+    _precoController.clear();
+    _limparCamposDeAnuncio();
+  }
+
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
@@ -132,37 +156,7 @@ class _CriarPageState extends State<CriarPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            DropdownButtonFormField<PublicacaoTipo>(
-              key: ValueKey(_tipo),
-              initialValue: _tipo,
-              decoration: const InputDecoration(
-                labelText: 'O que você quer criar?',
-                border: OutlineInputBorder(),
-              ),
-              items: const [
-                DropdownMenuItem(
-                  value: PublicacaoTipo.anuncio,
-                  child: Text('Anúncio (vender algo)'),
-                ),
-                DropdownMenuItem(
-                  value: PublicacaoTipo.solicitacao,
-                  child: Text('Solicitação (procurar algo)'),
-                ),
-              ],
-              onChanged: (value) {
-                if (value == null) return;
-                setState(() {
-                  _tipo = value;
-                  if (_tipo != PublicacaoTipo.anuncio) {
-                    _imagens.clear();
-                    _cepController.clear();
-                    _valorPorKmController.clear();
-                    _logistica = AnuncioLogistica.retiradaLocal;
-                    _aceitaPropostas = false;
-                  }
-                });
-              },
-            ),
+            CriarTipoDropdown(tipo: _tipo, onChanged: _alterarTipo),
             const SizedBox(height: 16),
             TextFormField(
               controller: _nomeController,
@@ -171,11 +165,7 @@ class _CriarPageState extends State<CriarPage> {
                 labelText: _labelNome,
                 border: const OutlineInputBorder(),
               ),
-              validator: (value) {
-                final text = value?.trim() ?? '';
-                if (text.isEmpty) return 'Preencha este campo.';
-                return null;
-              },
+              validator: _validarCampoObrigatorio,
             ),
             const SizedBox(height: 12),
             TextFormField(
@@ -186,174 +176,40 @@ class _CriarPageState extends State<CriarPage> {
                 labelText: _labelDescricao,
                 border: const OutlineInputBorder(),
               ),
-              validator: (value) {
-                final text = value?.trim() ?? '';
-                if (text.isEmpty) return 'Preencha este campo.';
-                return null;
-              },
+              validator: _validarCampoObrigatorio,
             ),
             const SizedBox(height: 12),
             TextFormField(
               controller: _precoController,
               keyboardType: const TextInputType.numberWithOptions(
                 decimal: true,
-                signed: false,
               ),
               decoration: InputDecoration(
                 labelText: _labelPreco,
                 border: const OutlineInputBorder(),
               ),
-              validator: (value) {
-                final raw = (value ?? '').trim();
-                if (raw.isEmpty) return 'Informe um preço.';
-                final normalized = raw.replaceAll(',', '.');
-                final parsed = double.tryParse(normalized);
-                if (parsed == null) return 'Preço inválido.';
-                if (parsed <= 0) return 'O preço deve ser maior que zero.';
-                return null;
-              },
+              validator: _validarPreco,
             ),
             const SizedBox(height: 16),
             if (_tipo == PublicacaoTipo.anuncio) ...[
-              Text(
-                'Entrega',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: 8),
-              DropdownButtonFormField<AnuncioLogistica>(
-                key: ValueKey(_logistica),
-                initialValue: _logistica,
-                decoration: const InputDecoration(
-                  labelText: 'Como funciona?',
-                  border: OutlineInputBorder(),
-                ),
-                items: const [
-                  DropdownMenuItem(
-                    value: AnuncioLogistica.retiradaLocal,
-                    child: Text('Retirada no local'),
-                  ),
-                  DropdownMenuItem(
-                    value: AnuncioLogistica.entrega,
-                    child: Text('Faz entrega'),
-                  ),
-                ],
-                onChanged: (value) {
-                  if (value == null) return;
-                  setState(() {
-                    _logistica = value;
-                    if (_logistica != AnuncioLogistica.entrega) {
-                      _cepController.clear();
-                      _valorPorKmController.clear();
-                    }
-                  });
+              EntregaFields(
+                logistica: _logistica,
+                cepController: _cepController,
+                valorPorKmController: _valorPorKmController,
+                aceitaPropostas: _aceitaPropostas,
+                onLogisticaChanged: _alterarLogistica,
+                onAceitaPropostasChanged: (value) {
+                  setState(() => _aceitaPropostas = value);
                 },
               ),
-              if (_logistica == AnuncioLogistica.entrega) ...[
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _cepController,
-                  keyboardType: TextInputType.number,
-                  textInputAction: TextInputAction.next,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.digitsOnly,
-                    LengthLimitingTextInputFormatter(8),
-                  ],
-                  decoration: const InputDecoration(
-                    labelText: 'Seu CEP (origem da entrega)',
-                    hintText: 'Ex: 12345678',
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (_) {
-                    if (_tipo != PublicacaoTipo.anuncio ||
-                        _logistica != AnuncioLogistica.entrega) {
-                      return null;
-                    }
-                    final cep = _cepController.text.trim();
-                    if (cep.isEmpty) return 'Informe seu CEP.';
-                    if (cep.length != 8) return 'CEP deve ter 8 dígitos.';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _valorPorKmController,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(
-                    labelText: 'Quanto cobra por km (R\$)',
-                    hintText: 'Ex: 2,50',
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (_) {
-                    if (_tipo != PublicacaoTipo.anuncio ||
-                        _logistica != AnuncioLogistica.entrega) {
-                      return null;
-                    }
-                    final parsed = parseMoneyInput(_valorPorKmController.text);
-                    if (parsed == null) return 'Informe o valor por km.';
-                    if (parsed <= 0) return 'O valor por km deve ser > 0.';
-                    return null;
-                  },
-                ),
-              ],
               const SizedBox(height: 12),
-              SwitchListTile(
-                value: _aceitaPropostas,
-                onChanged: (value) => setState(() => _aceitaPropostas = value),
-                title: const Text('Aceita propostas de valor diferentes'),
-                contentPadding: EdgeInsets.zero,
+              ImagensPickerSection(
+                imagens: _imagens,
+                onAdicionarImagens: _adicionarImagens,
+                onRemoverImagem: (index) {
+                  setState(() => _imagens.removeAt(index));
+                },
               ),
-              const SizedBox(height: 12),
-              Text(
-                'Imagens',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: 8),
-              OutlinedButton.icon(
-                onPressed: _adicionarImagens,
-                icon: const Icon(Icons.photo_library_outlined),
-                label: const Text('Adicionar imagens'),
-              ),
-              if (_imagens.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                SizedBox(
-                  height: 96,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: _imagens.length,
-                    separatorBuilder: (context, index) =>
-                        const SizedBox(width: 12),
-                    itemBuilder: (context, index) {
-                      return Stack(
-                        children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: Image.memory(
-                              _imagens[index],
-                              width: 96,
-                              height: 96,
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                          Positioned(
-                            top: 2,
-                            right: 2,
-                            child: IconButton(
-                              onPressed: () => _removerImagem(index),
-                              icon: const Icon(Icons.close),
-                              style: IconButton.styleFrom(
-                                backgroundColor: Colors.black54,
-                                foregroundColor: Colors.white,
-                                visualDensity: VisualDensity.compact,
-                              ),
-                            ),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                ),
-              ],
               const SizedBox(height: 16),
             ],
             FilledButton(
@@ -364,5 +220,20 @@ class _CriarPageState extends State<CriarPage> {
         ),
       ),
     );
+  }
+
+  String? _validarCampoObrigatorio(String? value) {
+    final text = value?.trim() ?? '';
+    if (text.isEmpty) return 'Preencha este campo.';
+    return null;
+  }
+
+  String? _validarPreco(String? value) {
+    final raw = (value ?? '').trim();
+    if (raw.isEmpty) return 'Informe um preço.';
+    final parsed = double.tryParse(raw.replaceAll(',', '.'));
+    if (parsed == null) return 'Preço inválido.';
+    if (parsed <= 0) return 'O preço deve ser maior que zero.';
+    return null;
   }
 }

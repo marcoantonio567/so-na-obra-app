@@ -1,14 +1,14 @@
-import 'dart:math';
+import 'dart:typed_data';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
-import '../data/local_database.dart';
 import '../models/publicacao.dart';
-import '../widgets/publicacao_card.dart';
+import 'perfil/perfil_header_card.dart';
+import 'perfil/pin_recebimento_card.dart';
+import 'perfil/pin_recebimento_store.dart';
+import 'perfil/publicacoes_section.dart';
 
 class PerfilPage extends StatefulWidget {
   const PerfilPage({
@@ -35,13 +35,13 @@ class PerfilPage extends StatefulWidget {
 }
 
 class _PerfilPageState extends State<PerfilPage> {
-  static final Map<String, String> _pinMemCache = {};
-
   String? _pinRecebimento;
   bool _pinVisivel = false;
   bool _carregandoPin = true;
 
-  String get _pinPrefsKey => 'pin_recebimento:${widget.userId}';
+  PinRecebimentoStore get _pinStore => PinRecebimentoStore(
+        userId: widget.userId,
+      );
 
   @override
   void initState() {
@@ -53,40 +53,7 @@ class _PerfilPageState extends State<PerfilPage> {
     setState(() => _carregandoPin = true);
     String? pin;
     try {
-      if (kIsWeb) {
-        try {
-          final prefs = await SharedPreferences.getInstance();
-          pin = prefs.getString(_pinPrefsKey);
-          if ((pin ?? '').trim().isEmpty) pin = null;
-        } catch (_) {
-          pin = _pinMemCache[widget.userId];
-        }
-      } else {
-        try {
-          final prefs = await SharedPreferences.getInstance();
-          pin = prefs.getString(_pinPrefsKey);
-          if ((pin ?? '').trim().isEmpty) pin = null;
-        } catch (_) {
-          pin = null;
-        }
-
-        if (pin == null) {
-          try {
-            pin = await LocalDatabase.instance
-                .obterPinRecebimento(userId: widget.userId);
-            if ((pin ?? '').trim().isEmpty) pin = null;
-          } catch (_) {
-            pin = null;
-          }
-
-          if (pin != null) {
-            try {
-              final prefs = await SharedPreferences.getInstance();
-              await prefs.setString(_pinPrefsKey, pin);
-            } catch (_) {}
-          }
-        }
-      }
+      pin = await _pinStore.carregar();
     } catch (_) {
       pin = null;
     }
@@ -97,61 +64,21 @@ class _PerfilPageState extends State<PerfilPage> {
     });
   }
 
-  String _gerarPin() {
-    Random rng;
-    try {
-      rng = Random.secure();
-    } catch (_) {
-      rng = Random();
-    }
-    final n = rng.nextInt(1000000);
-    return n.toString().padLeft(6, '0');
-  }
-
   Future<void> _gerarOuRegenerarPin() async {
-    final novo = _gerarPin();
     setState(() => _carregandoPin = true);
-    String? message;
-    var savedPersistently = false;
-
-    if (kIsWeb) {
-      try {
-        final prefs = await SharedPreferences.getInstance();
-        savedPersistently = await prefs.setString(_pinPrefsKey, novo);
-      } catch (_) {
-        savedPersistently = false;
-      }
-
-      if (!savedPersistently) {
-        _pinMemCache[widget.userId] = novo;
-        message =
-            'No navegador, não foi possível salvar nos dados do site. Verifique se o Edge está bloqueando cookies/dados do site (ou modo InPrivate).';
-      }
-    } else {
-      try {
-        final prefs = await SharedPreferences.getInstance();
-        savedPersistently = await prefs.setString(_pinPrefsKey, novo);
-      } catch (_) {
-        savedPersistently = false;
-      }
-
-      try {
-        await LocalDatabase.instance
-            .salvarPinRecebimento(userId: widget.userId, pin: novo);
-      } catch (_) {}
-    }
+    final result = await _pinStore.gerarESalvar();
 
     if (!mounted) return;
     setState(() {
       _carregandoPin = false;
-      _pinRecebimento = novo;
+      _pinRecebimento = result.pin;
       _pinVisivel = true;
     });
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          message ??
-              (savedPersistently
+          result.message ??
+              (result.savedPersistently
                   ? 'PIN gerado e salvo com sucesso.'
                   : 'PIN gerado (não foi possível salvar).'),
         ),
@@ -258,215 +185,49 @@ class _PerfilPageState extends State<PerfilPage> {
   @override
   Widget build(BuildContext context) {
     final nomeExibicao = widget.nome.trim().isEmpty ? 'Seu nome' : widget.nome;
-    final pin = _pinRecebimento;
-    final pinMascara = pin == null ? '—' : '••••••';
 
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 34,
-                  backgroundImage:
-                      widget.foto != null ? MemoryImage(widget.foto!) : null,
-                  child: widget.foto == null
-                      ? const Icon(Icons.person, size: 34)
-                      : null,
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        nomeExibicao,
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          OutlinedButton.icon(
-                            onPressed: _trocarFoto,
-                            icon: const Icon(Icons.photo_camera_outlined),
-                            label: const Text('Trocar foto'),
-                          ),
-                          if (widget.foto != null)
-                            OutlinedButton.icon(
-                              onPressed: () => widget.onFotoAlterada(null),
-                              icon: const Icon(Icons.delete_outline),
-                              label: const Text('Remover'),
-                            ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
+        PerfilHeaderCard(
+          nome: nomeExibicao,
+          foto: widget.foto,
+          onTrocarFoto: _trocarFoto,
+          onRemoverFoto: () => widget.onFotoAlterada(null),
         ),
         const SizedBox(height: 12),
         Card(
-          child: Column(
-            children: [
-              ListTile(
-                leading: const Icon(Icons.badge_outlined),
-                title: const Text('Nome'),
-                subtitle: Text(nomeExibicao),
-                trailing: const Icon(Icons.edit_outlined),
-                onTap: _editarNome,
-              ),
-            ],
+          child: ListTile(
+            leading: const Icon(Icons.badge_outlined),
+            title: const Text('Nome'),
+            subtitle: Text(nomeExibicao),
+            trailing: const Icon(Icons.edit_outlined),
+            onTap: _editarNome,
           ),
         ),
         const SizedBox(height: 12),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  children: [
-                    const Icon(Icons.lock_outline),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'PIN de recebimento',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                    ),
-                    if (pin != null)
-                      IconButton(
-                        onPressed: _copiarPin,
-                        icon: const Icon(Icons.copy_outlined),
-                        tooltip: 'Copiar',
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 12,
-                  ),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    color: Theme.of(context).colorScheme.surfaceContainer,
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          _carregandoPin
-                              ? 'Carregando...'
-                              : (pin == null
-                                  ? 'Nenhum PIN gerado ainda.'
-                                  : (_pinVisivel ? pin : pinMascara)),
-                          style: Theme.of(context).textTheme.titleLarge,
-                        ),
-                      ),
-                      if (pin != null && !_carregandoPin)
-                        IconButton(
-                          onPressed: () =>
-                              setState(() => _pinVisivel = !_pinVisivel),
-                          icon: Icon(
-                            _pinVisivel
-                                ? Icons.visibility_off_outlined
-                                : Icons.visibility_outlined,
-                          ),
-                          tooltip: _pinVisivel ? 'Ocultar' : 'Mostrar',
-                        ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Use este PIN para confirmar o recebimento da mercadoria.',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  children: [
-                    FilledButton.icon(
-                      onPressed: _carregandoPin ? null : _gerarOuRegenerarPin,
-                      icon: Icon(pin == null ? Icons.key : Icons.refresh),
-                      label: Text(pin == null ? 'Gerar PIN' : 'Gerar novo PIN'),
-                    ),
-                    if (pin != null)
-                      OutlinedButton.icon(
-                        onPressed: _carregandoPin ? null : _copiarPin,
-                        icon: const Icon(Icons.copy_outlined),
-                        label: const Text('Copiar'),
-                      ),
-                  ],
-                ),
-              ],
-            ),
-          ),
+        PinRecebimentoCard(
+          pin: _pinRecebimento,
+          carregando: _carregandoPin,
+          visivel: _pinVisivel,
+          onCopiar: _copiarPin,
+          onGerarOuRegenerar: _gerarOuRegenerarPin,
+          onAlternarVisibilidade: () {
+            setState(() => _pinVisivel = !_pinVisivel);
+          },
         ),
         const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                'Minhas solicitações',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-            ),
-            Text('${widget.minhasSolicitacoes.length}'),
-          ],
+        PublicacoesSection(
+          titulo: 'Minhas solicitações',
+          emptyText: 'Você ainda não publicou nenhuma solicitação.',
+          publicacoes: widget.minhasSolicitacoes,
         ),
-        const SizedBox(height: 12),
-        if (widget.minhasSolicitacoes.isEmpty)
-          const Card(
-            child: Padding(
-              padding: EdgeInsets.all(16),
-              child: Text('Você ainda não publicou nenhuma solicitação.'),
-            ),
-          )
-        else
-          ...widget.minhasSolicitacoes.map(
-            (p) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: PublicacaoCard(publicacao: p),
-            ),
-          ),
         const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                'Meus anúncios',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-            ),
-            Text('${widget.meusAnuncios.length}'),
-          ],
+        PublicacoesSection(
+          titulo: 'Meus anúncios',
+          emptyText: 'Você ainda não publicou nenhum anúncio.',
+          publicacoes: widget.meusAnuncios,
         ),
-        const SizedBox(height: 12),
-        if (widget.meusAnuncios.isEmpty)
-          const Card(
-            child: Padding(
-              padding: EdgeInsets.all(16),
-              child: Text('Você ainda não publicou nenhum anúncio.'),
-            ),
-          )
-        else
-          ...widget.meusAnuncios.map(
-            (p) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: PublicacaoCard(publicacao: p),
-            ),
-          ),
       ],
     );
   }
