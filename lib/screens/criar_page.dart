@@ -58,16 +58,28 @@ class _CriarPageState extends State<CriarPage> {
     setState(() => _imagens.addAll(bytesList));
   }
 
+  String get _tituloHeader => _tipo == PublicacaoTipo.solicitacao
+      ? 'Criar solicitação'
+      : 'Criar anúncio';
+
+  String get _subtituloHeader => _tipo == PublicacaoTipo.solicitacao
+      ? 'Conte o que você procura e quanto pretende pagar.'
+      : 'Cadastre um produto com preço, entrega e fotos.';
+
   String get _labelNome =>
-      _tipo == PublicacaoTipo.solicitacao ? 'Nome do que procura' : 'Produto';
+      _tipo == PublicacaoTipo.solicitacao ? 'O que você procura?' : 'Produto';
 
   String get _labelDescricao => _tipo == PublicacaoTipo.solicitacao
-      ? 'Descrição do que procura'
-      : 'Descrição do produto';
+      ? 'Descreva o que precisa'
+      : 'Descreva o produto';
 
   String get _labelPreco => _tipo == PublicacaoTipo.solicitacao
-      ? 'Preço que pagaria (R\$)'
-      : 'Preço de venda (R\$)';
+      ? 'Valor que pretende pagar'
+      : 'Preço de venda';
+
+  String get _botaoCriar => _tipo == PublicacaoTipo.solicitacao
+      ? 'Publicar solicitação'
+      : 'Publicar anúncio';
 
   void _alterarTipo(PublicacaoTipo value) {
     setState(() {
@@ -99,8 +111,11 @@ class _CriarPageState extends State<CriarPage> {
     if (!isValid) return;
 
     final tipoCriado = _tipo;
-    final preco = double.parse(_precoController.text.replaceAll(',', '.'));
-    final isEntrega = tipoCriado == PublicacaoTipo.anuncio &&
+    final preco = parseMoneyInput(_precoController.text);
+    if (preco == null) return;
+
+    final isEntrega =
+        tipoCriado == PublicacaoTipo.anuncio &&
         _logistica == AnuncioLogistica.entrega;
 
     widget.onCriar(
@@ -113,15 +128,18 @@ class _CriarPageState extends State<CriarPage> {
         preco: preco,
         criadoEm: DateTime.now(),
         imagens: tipoCriado == PublicacaoTipo.anuncio ? _imagens : null,
-        anuncioLogistica:
-            tipoCriado == PublicacaoTipo.anuncio ? _logistica : null,
+        anuncioLogistica: tipoCriado == PublicacaoTipo.anuncio
+            ? _logistica
+            : null,
         entregaCep: isEntrega
             ? _cepController.text.trim().replaceAll(RegExp(r'\D'), '')
             : null,
-        entregaValorPorKm:
-            isEntrega ? parseMoneyInput(_valorPorKmController.text) : null,
-        aceitaPropostas:
-            tipoCriado == PublicacaoTipo.anuncio ? _aceitaPropostas : false,
+        entregaValorPorKm: isEntrega
+            ? parseMoneyInput(_valorPorKmController.text)
+            : null,
+        aceitaPropostas: tipoCriado == PublicacaoTipo.anuncio
+            ? _aceitaPropostas
+            : false,
       ),
     );
 
@@ -139,60 +157,82 @@ class _CriarPageState extends State<CriarPage> {
   }
 
   void _resetForm() {
-    setState(() => _tipo = PublicacaoTipo.anuncio);
+    setState(() {
+      _tipo = PublicacaoTipo.anuncio;
+      _limparCamposDeAnuncio();
+    });
     _formKey.currentState?.reset();
     _nomeController.clear();
     _descricaoController.clear();
     _precoController.clear();
-    _limparCamposDeAnuncio();
   }
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Form(
-        key: _formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            CriarTipoDropdown(tipo: _tipo, onChanged: _alterarTipo),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _nomeController,
-              textInputAction: TextInputAction.next,
-              decoration: InputDecoration(
-                labelText: _labelNome,
-                border: const OutlineInputBorder(),
-              ),
-              validator: _validarCampoObrigatorio,
+    return Form(
+      key: _formKey,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+        children: [
+          _CreateHeader(title: _tituloHeader, subtitle: _subtituloHeader),
+          const SizedBox(height: 16),
+          _FormSection(
+            icon: Icons.tune_outlined,
+            title: 'Tipo de publicação',
+            child: CriarTipoDropdown(tipo: _tipo, onChanged: _alterarTipo),
+          ),
+          const SizedBox(height: 14),
+          _FormSection(
+            icon: Icons.edit_note_outlined,
+            title: 'Informações principais',
+            child: Column(
+              children: [
+                TextFormField(
+                  controller: _nomeController,
+                  textInputAction: TextInputAction.next,
+                  decoration: InputDecoration(
+                    labelText: _labelNome,
+                    prefixIcon: const Icon(Icons.inventory_2_outlined),
+                    border: const OutlineInputBorder(),
+                  ),
+                  validator: _validarCampoObrigatorio,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _descricaoController,
+                  minLines: 4,
+                  maxLines: 7,
+                  decoration: InputDecoration(
+                    labelText: _labelDescricao,
+                    alignLabelWithHint: true,
+                    prefixIcon: const Icon(Icons.notes_outlined),
+                    border: const OutlineInputBorder(),
+                  ),
+                  validator: _validarCampoObrigatorio,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _precoController,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: InputDecoration(
+                    labelText: _labelPreco,
+                    hintText: 'Ex: 120,00',
+                    prefixIcon: const Icon(Icons.payments_outlined),
+                    border: const OutlineInputBorder(),
+                  ),
+                  validator: _validarPreco,
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _descricaoController,
-              minLines: 3,
-              maxLines: 6,
-              decoration: InputDecoration(
-                labelText: _labelDescricao,
-                border: const OutlineInputBorder(),
-              ),
-              validator: _validarCampoObrigatorio,
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _precoController,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              decoration: InputDecoration(
-                labelText: _labelPreco,
-                border: const OutlineInputBorder(),
-              ),
-              validator: _validarPreco,
-            ),
-            const SizedBox(height: 16),
-            if (_tipo == PublicacaoTipo.anuncio) ...[
-              EntregaFields(
+          ),
+          if (_tipo == PublicacaoTipo.anuncio) ...[
+            const SizedBox(height: 14),
+            _FormSection(
+              icon: Icons.local_shipping_outlined,
+              title: 'Entrega e negociação',
+              child: EntregaFields(
                 logistica: _logistica,
                 cepController: _cepController,
                 valorPorKmController: _valorPorKmController,
@@ -202,22 +242,33 @@ class _CriarPageState extends State<CriarPage> {
                   setState(() => _aceitaPropostas = value);
                 },
               ),
-              const SizedBox(height: 12),
-              ImagensPickerSection(
+            ),
+            const SizedBox(height: 14),
+            _FormSection(
+              icon: Icons.photo_library_outlined,
+              title: 'Fotos do produto',
+              child: ImagensPickerSection(
                 imagens: _imagens,
                 onAdicionarImagens: _adicionarImagens,
                 onRemoverImagem: (index) {
                   setState(() => _imagens.removeAt(index));
                 },
               ),
-              const SizedBox(height: 16),
-            ],
-            FilledButton(
-              onPressed: _submit,
-              child: const Text('Criar'),
             ),
           ],
-        ),
+          const SizedBox(height: 18),
+          FilledButton.icon(
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(54),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            onPressed: _submit,
+            icon: const Icon(Icons.publish_outlined),
+            label: Text(_botaoCriar),
+          ),
+        ],
       ),
     );
   }
@@ -231,9 +282,119 @@ class _CriarPageState extends State<CriarPage> {
   String? _validarPreco(String? value) {
     final raw = (value ?? '').trim();
     if (raw.isEmpty) return 'Informe um preço.';
-    final parsed = double.tryParse(raw.replaceAll(',', '.'));
+    final parsed = parseMoneyInput(raw);
     if (parsed == null) return 'Preço inválido.';
     if (parsed <= 0) return 'O preço deve ser maior que zero.';
     return null;
+  }
+}
+
+class _CreateHeader extends StatelessWidget {
+  const _CreateHeader({required this.title, required this.subtitle});
+
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: colorScheme.primaryContainer,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: colorScheme.outlineVariant),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: colorScheme.primary,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(Icons.add_box_outlined, color: colorScheme.onPrimary),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  subtitle,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FormSection extends StatelessWidget {
+  const _FormSection({
+    required this.icon,
+    required this.title,
+    required this.child,
+  });
+
+  final IconData icon;
+  final String title;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: colorScheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: colorScheme.primary, size: 20),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  title,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          child,
+        ],
+      ),
+    );
   }
 }
