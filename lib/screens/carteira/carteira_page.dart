@@ -9,10 +9,7 @@ import '../../widgets/compra_card.dart';
 import '../../widgets/confirmar_recebimento_dialog.dart';
 
 class CarteiraPage extends StatefulWidget {
-  const CarteiraPage({
-    super.key,
-    required this.userId,
-  });
+  const CarteiraPage({super.key, required this.userId});
 
   final String userId;
 
@@ -33,11 +30,7 @@ class _CarteiraPageState extends State<CarteiraPage> {
       valor: 59.90,
       data: DateTime(2026, 4, 4),
     ),
-    Compra(
-      nome: 'Luva de proteção',
-      valor: 18.50,
-      data: DateTime(2026, 4, 12),
-    ),
+    Compra(nome: 'Luva de proteção', valor: 18.50, data: DateTime(2026, 4, 12)),
     Compra(
       nome: 'Botina de segurança',
       valor: 129.90,
@@ -67,8 +60,9 @@ class _CarteiraPageState extends State<CarteiraPage> {
 
       if (!kIsWeb && pin == null) {
         try {
-          pin = await LocalDatabase.instance
-              .obterPinRecebimento(userId: widget.userId);
+          pin = await LocalDatabase.instance.obterPinRecebimento(
+            userId: widget.userId,
+          );
           if ((pin ?? '').trim().isEmpty) pin = null;
         } catch (_) {
           pin = null;
@@ -93,69 +87,16 @@ class _CarteiraPageState extends State<CarteiraPage> {
   }
 
   Future<void> _abrirSaque() async {
-    final controller = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-    try {
-      final valor = await showDialog<double>(
-        context: context,
-        builder: (dialogContext) {
-          return AlertDialog(
-            title: const Text('Sacar'),
-            content: Form(
-              key: formKey,
-              child: TextFormField(
-                controller: controller,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                autofocus: true,
-                decoration: const InputDecoration(
-                  labelText: 'Valor',
-                  hintText: 'Ex: 50,00',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) {
-                  final parsed = parseMoneyInput(value ?? '');
-                  if (parsed == null) return 'Informe um valor.';
-                  if (parsed <= 0) return 'Informe um valor maior que zero.';
-                  if (parsed > _saldo) return 'Saldo insuficiente.';
-                  return null;
-                },
-                textInputAction: TextInputAction.done,
-                onFieldSubmitted: (_) {
-                  final isValid = formKey.currentState?.validate() ?? false;
-                  if (!isValid) return;
-                  final parsed = parseMoneyInput(controller.text);
-                  Navigator.of(dialogContext).pop(parsed);
-                },
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(),
-                child: const Text('Cancelar'),
-              ),
-              FilledButton(
-                onPressed: () {
-                  final isValid = formKey.currentState?.validate() ?? false;
-                  if (!isValid) return;
-                  final parsed = parseMoneyInput(controller.text);
-                  Navigator.of(dialogContext).pop(parsed);
-                },
-                child: const Text('Confirmar'),
-              ),
-            ],
-          );
-        },
-      );
+    final valor = await showDialog<double>(
+      context: context,
+      builder: (_) => _SaqueDialog(saldoDisponivel: _saldo),
+    );
 
-      if (!mounted || valor == null) return;
-      setState(() => _saldo -= valor);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Saque de ${formatMoneyBRL(valor)} solicitado.')),
-      );
-    } finally {
-      controller.dispose();
-    }
+    if (!mounted || valor == null) return;
+    setState(() => _saldo -= valor);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Saque de ${formatMoneyBRL(valor)} solicitado.')),
+    );
   }
 
   Future<void> _atualizarSaldo() async {
@@ -185,8 +126,7 @@ class _CarteiraPageState extends State<CarteiraPage> {
 
     final ok = await showDialog<bool>(
       context: context,
-      builder: (_) =>
-          ConfirmarRecebimentoDialog(pinCadastrado: pinCadastrado),
+      builder: (_) => ConfirmarRecebimentoDialog(pinCadastrado: pinCadastrado),
     );
     return ok ?? false;
   }
@@ -246,7 +186,9 @@ class _CarteiraPageState extends State<CarteiraPage> {
                       onPressed: _atualizandoSaldo ? null : _atualizarSaldo,
                       icon: const Icon(Icons.refresh),
                       label: Text(
-                        _atualizandoSaldo ? 'Atualizando...' : 'Atualizar saldo',
+                        _atualizandoSaldo
+                            ? 'Atualizando...'
+                            : 'Atualizar saldo',
                       ),
                     ),
                   ],
@@ -278,6 +220,69 @@ class _CarteiraPageState extends State<CarteiraPage> {
               onConfirmarRecebimento: () => _confirmarRecebimento(index),
             );
           }),
+      ],
+    );
+  }
+}
+
+class _SaqueDialog extends StatefulWidget {
+  const _SaqueDialog({required this.saldoDisponivel});
+
+  final double saldoDisponivel;
+
+  @override
+  State<_SaqueDialog> createState() => _SaqueDialogState();
+}
+
+class _SaqueDialogState extends State<_SaqueDialog> {
+  final _controller = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _confirmar() {
+    final isValid = _formKey.currentState?.validate() ?? false;
+    if (!isValid) return;
+    final parsed = parseMoneyInput(_controller.text);
+    Navigator.of(context).pop(parsed);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Sacar'),
+      content: Form(
+        key: _formKey,
+        child: TextFormField(
+          controller: _controller,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: 'Valor',
+            hintText: 'Ex: 50,00',
+            border: OutlineInputBorder(),
+          ),
+          validator: (value) {
+            final parsed = parseMoneyInput(value ?? '');
+            if (parsed == null) return 'Informe um valor.';
+            if (parsed <= 0) return 'Informe um valor maior que zero.';
+            if (parsed > widget.saldoDisponivel) return 'Saldo insuficiente.';
+            return null;
+          },
+          textInputAction: TextInputAction.done,
+          onFieldSubmitted: (_) => _confirmar(),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(onPressed: _confirmar, child: const Text('Confirmar')),
       ],
     );
   }

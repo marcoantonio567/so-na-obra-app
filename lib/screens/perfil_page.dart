@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
@@ -40,9 +38,8 @@ class _PerfilPageState extends State<PerfilPage> {
   bool _carregandoPin = true;
   int _publicacoesTabIndex = 0;
 
-  PinRecebimentoStore get _pinStore => PinRecebimentoStore(
-        userId: widget.userId,
-      );
+  PinRecebimentoStore get _pinStore =>
+      PinRecebimentoStore(userId: widget.userId);
 
   @override
   void initState() {
@@ -92,9 +89,9 @@ class _PerfilPageState extends State<PerfilPage> {
     if (pin == null || pin.isEmpty) return;
     await Clipboard.setData(ClipboardData(text: pin));
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('PIN copiado.')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('PIN copiado.')));
   }
 
   Future<void> _trocarFoto() async {
@@ -213,9 +210,7 @@ class _PerfilPageState extends State<PerfilPage> {
         TabBar(
           tabs: [
             for (final tab in tabs)
-              Tab(
-                child: FittedBox(child: Text('${tab.label} (${tab.count})')),
-              ),
+              Tab(child: FittedBox(child: Text('${tab.label} (${tab.count})'))),
           ],
           onTap: (index) {
             setState(() => _publicacoesTabIndex = index);

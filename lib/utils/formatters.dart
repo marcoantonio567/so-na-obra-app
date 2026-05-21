@@ -23,8 +23,33 @@ String formatDateBR(DateTime date) {
 }
 
 double? parseMoneyInput(String input) {
-  final cleaned =
-      input.trim().replaceAll(RegExp(r'[^0-9,\.]'), '').replaceAll(',', '.');
-  if (cleaned.isEmpty) return null;
-  return double.tryParse(cleaned);
+  final value = input.trim().replaceAll(RegExp(r'[^0-9,\.]'), '');
+  if (value.isEmpty) return null;
+
+  final lastComma = value.lastIndexOf(',');
+  final lastDot = value.lastIndexOf('.');
+  final decimalSeparatorIndex = lastComma > lastDot ? lastComma : lastDot;
+  final separators = RegExp(r'[,\.]').allMatches(value).length;
+
+  if (decimalSeparatorIndex == -1) {
+    return double.tryParse(value);
+  }
+
+  if (separators == 1 && value.length - decimalSeparatorIndex - 1 == 3) {
+    return double.tryParse(value.replaceAll(RegExp(r'[^0-9]'), ''));
+  }
+
+  final integerPart = value
+      .substring(0, decimalSeparatorIndex)
+      .replaceAll(RegExp(r'[^0-9]'), '');
+  final decimalPart = value
+      .substring(decimalSeparatorIndex + 1)
+      .replaceAll(RegExp(r'[^0-9]'), '');
+
+  if (integerPart.isEmpty && decimalPart.isEmpty) return null;
+  final normalizedInteger = integerPart.isEmpty ? '0' : integerPart;
+  final normalized = decimalPart.isEmpty
+      ? normalizedInteger
+      : '$normalizedInteger.$decimalPart';
+  return double.tryParse(normalized);
 }
