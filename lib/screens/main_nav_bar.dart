@@ -8,7 +8,6 @@ import '../models/publicacao.dart';
 import '../services/publicacoes_service.dart';
 import 'anuncios_page.dart';
 import 'carteira/carteira_page.dart';
-import 'chats_page.dart';
 import 'criar_page.dart';
 import 'perfil_page.dart';
 import 'solicitacoes_page.dart';
@@ -160,6 +159,14 @@ class _MainNavBarState extends State<MainNavBar> {
         .toList(growable: false);
   }
 
+  void _mostrarChatEmBreve() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Chat em breve sera implementado.'),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -193,13 +200,7 @@ class _MainNavBarState extends State<MainNavBar> {
         actions: [
           IconButton(
             key: const Key('home_top_chat_button'),
-            onPressed: () {
-              Navigator.of(context, rootNavigator: true).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const ChatsPage(),
-                ),
-              );
-            },
+            onPressed: _mostrarChatEmBreve,
             icon: const Icon(Icons.chat_bubble_outline),
             tooltip: 'Chat',
           ),

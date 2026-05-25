@@ -130,10 +130,8 @@ class AnuncioDetalhePage extends StatelessWidget {
               OutlinedButton.icon(
                 onPressed: () {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Abrindo chat com ${publicacao.criadoPorNome}...',
-                      ),
+                    const SnackBar(
+                      content: Text('Chat em breve sera implementado.'),
                     ),
                   );
                 },
